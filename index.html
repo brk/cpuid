@@ -10,21 +10,45 @@
                 </style>
                 <script type="text/javascript"
                   src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
-	</head>
+                <script type="text/javascript">
+                var db = {{ db }};
+                </script>
+        </head>
 	<body>
 	
 <table style="border: 1px solid black;" width="100%">
 	<tr>
 		<td>
 			<center>
-	<table style="border: 2px solid red;">
+	<table border="2px">
 		<tr>
-			<td>
-				cell 1
+			<td id="machines-cell">
+				Machines<br>
+				<div id="machines-list"></div>
 			</td>
 			
-			<td>
-				cell 2
+			<td id="languages-cell">
+				Languages<br>
+				<div id="languages-list"></div>
+			</td>
+			
+			<td id="compilers-cell">
+				Compilers<br>
+				<div id="compilers-list"></div>
+			</td>
+			
+			<td id="benchmarks-cell">
+				Benchmarks<br>
+				<div id="benchmarks-list"></div>
+			</td>
+			
+			<td id="input-cell">
+				Independent Variable<br>
+				<div id="input-list"></div>
+			</td>
+			<td id="output-cell">
+				Dependent Variable<br>
+				<div id="output-list"></div>
 			</td>
 		</tr>
 	</table>
@@ -38,7 +62,6 @@
 		</td>
 	</tr>
 </table>
-
 	</body>
 </html>
 
