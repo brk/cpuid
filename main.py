@@ -17,21 +17,25 @@
 
 
 
-
+import os
 import wsgiref.handlers
 
-
+from google.appengine.ext.webapp import template
 from google.appengine.ext import webapp
 
+def file_path(filename):
+	return os.path.join(os.path.dirname(__file__), filename)
 
-class MainHandler(webapp.RequestHandler):
+class MainPage(webapp.RequestHandler):
 
   def get(self):
-    self.response.out.write('Hello world!')
+  	  path = file_path('index.html')
+  	  template_values = {}
+  	  self.response.out.write(template.render(path, template_values))
 
 
 def main():
-  application = webapp.WSGIApplication([('/', MainHandler)],
+  application = webapp.WSGIApplication([('/', MainPage)],
                                        debug=True)
   wsgiref.handlers.CGIHandler().run(application)
 
