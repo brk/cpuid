@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.txt file.
 
+// Based on revision 036 (August 2009) of Intel's Application Note 485,
+// Intel (r) Processor Identification and the CPUID Instruction.
+// http://www.intel.com/Assets/PDF/appnote/241618.pdf
+
 #include <iostream>
 #include <cassert>
 #include <string>
@@ -65,16 +69,18 @@ struct tag_processor_features {
   int threads; // total, or per core?
 } processor_features;
 
-struct tag_processor_cache {
+struct tag_processor_cache_descriptor {
   int entries_or_linesize; // 0 if no relevant cache; linesize for non-TLB caches 
   int set_assoc_ways; // 0 for fully associative
   bool sectored;
   int size; // page size for TLB caches, total size for non-TLB caches
 };
 
-struct tag_processor_caches {
-  tag_processor_cache TLBi, TLBd, L1i, L1d, L2, L3;
-} processor_caches;
+struct tag_processor_cache_descriptors {
+  tag_processor_cache_descriptor TLBi, TLBd, L1i, L1d, L2, L3;
+} processor_cache_descriptors;
+
+char brand_string[48] = { '\0' };
 
 // global register variables
 uint eax, ebx, ecx, edx;
@@ -205,7 +211,7 @@ void intel_fill_processor_features() {
   processor_features.aes                       = BIT_IS_SET(ecx, 25);
 }
 
-void intel_set_cache_properties(tag_processor_cache& cache,
+void intel_set_cache_properties(tag_processor_cache_descriptor& cache,
       int size, int ways, int entries_or_linesize, bool sectored = false) {
   cache.size = size;
   cache.set_assoc_ways = ways;
@@ -218,46 +224,46 @@ void intel_decode_cache_descriptor(unsigned char v) {
   const int MB = KB * KB;
   
   switch (v) {
-  case 0x01: return intel_set_cache_properties(processor_caches.TLBi, 4*KB, 4, 32);
-  case 0x02: return intel_set_cache_properties(processor_caches.TLBi, 4*MB, 0, 2);
-  case 0x03: return intel_set_cache_properties(processor_caches.TLBd, 4*KB, 4, 64);
-  case 0x04: return intel_set_cache_properties(processor_caches.TLBd, 4*MB, 4, 8);
-  case 0x05: return intel_set_cache_properties(processor_caches.TLBd, 4*MB, 4, 32);
-  case 0x06: return intel_set_cache_properties(processor_caches.L1i, 8*KB, 4, 32);
-  case 0x08: return intel_set_cache_properties(processor_caches.L1i, 16*KB, 4, 32);
-  case 0x09: return intel_set_cache_properties(processor_caches.L1i, 32*KB, 4, 64);
-  case 0x0A: return intel_set_cache_properties(processor_caches.L1d, 8*KB, 2, 32);
-  case 0x0C: return intel_set_cache_properties(processor_caches.L1d, 16*KB, 4, 32);
-  case 0x0D: return intel_set_cache_properties(processor_caches.L1d, 16*KB, 4, 64); // also ECC...
-  case 0x21: return intel_set_cache_properties(processor_caches.L2, 256*KB, 8, 64);
-  case 0x22: return intel_set_cache_properties(processor_caches.L3, 512*KB, 4, 64, true);
-  case 0x23: return intel_set_cache_properties(processor_caches.L3, 1*MB, 8, 64, true);
-  case 0x25: return intel_set_cache_properties(processor_caches.L3, 2*MB, 8, 64, true);
-  case 0x29: return intel_set_cache_properties(processor_caches.L3, 4*MB, 8, 64, true);
-  case 0x2C: return intel_set_cache_properties(processor_caches.L1d, 32*KB, 8, 64);
-  case 0x30: return intel_set_cache_properties(processor_caches.L1i, 32*KB, 8, 64);
-  case 0x39: return intel_set_cache_properties(processor_caches.L2, 128*KB, 8, 64, true);
-  case 0x3A: return intel_set_cache_properties(processor_caches.L2, 192*KB, 6, 64, true);
-  case 0x3B: return intel_set_cache_properties(processor_caches.L2, 128*KB, 2, 64, true);
-  case 0x3C: return intel_set_cache_properties(processor_caches.L2, 256*KB, 4, 64, true);
-  case 0x3D: return intel_set_cache_properties(processor_caches.L2, 384*KB, 6, 64, true);
-  case 0x3E: return intel_set_cache_properties(processor_caches.L2, 512*KB, 4, 64, true);
-  case 0x40: return; // no L2 (or L3) cache
-  case 0x41: return intel_set_cache_properties(processor_caches.L2, 128*KB, 4, 32);
-  case 0x42: return intel_set_cache_properties(processor_caches.L2, 256*KB, 4, 32);
-  case 0x43: return intel_set_cache_properties(processor_caches.L2, 512*KB, 4, 32);
+  case 0x01: return intel_set_cache_properties(processor_cache_descriptors.TLBi, 4*KB, 4, 32);
+  case 0x02: return intel_set_cache_properties(processor_cache_descriptors.TLBi, 4*MB, 0, 2);
+  case 0x03: return intel_set_cache_properties(processor_cache_descriptors.TLBd, 4*KB, 4, 64);
+  case 0x04: return intel_set_cache_properties(processor_cache_descriptors.TLBd, 4*MB, 4, 8);
+  case 0x05: return intel_set_cache_properties(processor_cache_descriptors.TLBd, 4*MB, 4, 32);
+  case 0x06: return intel_set_cache_properties(processor_cache_descriptors.L1i, 8*KB, 4, 32);
+  case 0x08: return intel_set_cache_properties(processor_cache_descriptors.L1i, 16*KB, 4, 32);
+  case 0x09: return intel_set_cache_properties(processor_cache_descriptors.L1i, 32*KB, 4, 64);
+  case 0x0A: return intel_set_cache_properties(processor_cache_descriptors.L1d, 8*KB, 2, 32);
+  case 0x0C: return intel_set_cache_properties(processor_cache_descriptors.L1d, 16*KB, 4, 32);
+  case 0x0D: return intel_set_cache_properties(processor_cache_descriptors.L1d, 16*KB, 4, 64); // also ECC...
+  case 0x21: return intel_set_cache_properties(processor_cache_descriptors.L2, 256*KB, 8, 64);
+  case 0x22: return intel_set_cache_properties(processor_cache_descriptors.L3, 512*KB, 4, 64, true);
+  case 0x23: return intel_set_cache_properties(processor_cache_descriptors.L3, 1*MB, 8, 64, true);
+  case 0x25: return intel_set_cache_properties(processor_cache_descriptors.L3, 2*MB, 8, 64, true);
+  case 0x29: return intel_set_cache_properties(processor_cache_descriptors.L3, 4*MB, 8, 64, true);
+  case 0x2C: return intel_set_cache_properties(processor_cache_descriptors.L1d, 32*KB, 8, 64);
+  case 0x30: return intel_set_cache_properties(processor_cache_descriptors.L1i, 32*KB, 8, 64);
+  case 0x39: return intel_set_cache_properties(processor_cache_descriptors.L2, 128*KB, 8, 64, true);
+  case 0x3A: return intel_set_cache_properties(processor_cache_descriptors.L2, 192*KB, 6, 64, true);
+  case 0x3B: return intel_set_cache_properties(processor_cache_descriptors.L2, 128*KB, 2, 64, true);
+  case 0x3C: return intel_set_cache_properties(processor_cache_descriptors.L2, 256*KB, 4, 64, true);
+  case 0x3D: return intel_set_cache_properties(processor_cache_descriptors.L2, 384*KB, 6, 64, true);
+  case 0x3E: return intel_set_cache_properties(processor_cache_descriptors.L2, 512*KB, 4, 64, true);
+  case 0x40: return; // no L2 (or L3) cache                   _descriptors
+  case 0x41: return intel_set_cache_properties(processor_cache_descriptors.L2, 128*KB, 4, 32);
+  case 0x42: return intel_set_cache_properties(processor_cache_descriptors.L2, 256*KB, 4, 32);
+  case 0x43: return intel_set_cache_properties(processor_cache_descriptors.L2, 512*KB, 4, 32);
     // TODO: http://www.intel.com/Assets/PDF/appnote/241618.pdf page 27
     // TODO: http://www.intel.com/Assets/PDF/appnote/241618.pdf page 28
   }
 }
 
 void intel_fill_processor_caches() {
-  processor_caches.TLBi.entries_or_linesize = 0;
-  processor_caches.TLBd.entries_or_linesize = 0;
-  processor_caches.L1i.entries_or_linesize = 0;
-  processor_caches.L1d.entries_or_linesize = 0;
-  processor_caches.L2.entries_or_linesize = 0;
-  processor_caches.L3.entries_or_linesize = 0;
+  processor_cache_descriptors.TLBi.entries_or_linesize = 0;
+  processor_cache_descriptors.TLBd.entries_or_linesize = 0;
+  processor_cache_descriptors.L1i.entries_or_linesize = 0;
+  processor_cache_descriptors.L1d.entries_or_linesize = 0;
+  processor_cache_descriptors.L2.entries_or_linesize = 0;
+  processor_cache_descriptors.L3.entries_or_linesize = 0;
   
   cpuid_with_eax(2);
  
@@ -290,7 +296,21 @@ bool intel_was_cpuid_input_acceptable(uint eax) {
   return (eax & BIT(31)) == 0;
 }
 
+void intel_fill_brand_string_helper(int offset) {
+  ((uint*)brand_string)[offset + 0] = eax;
+  ((uint*)brand_string)[offset + 1] = ebx;
+  ((uint*)brand_string)[offset + 2] = ecx;
+  ((uint*)brand_string)[offset + 3] = edx;
+}
 
+void intel_fill_brand_string() {
+  cpuid_with_eax(0x80000002);
+  intel_fill_brand_string_helper(0);
+  cpuid_with_eax(0x80000003);
+  intel_fill_brand_string_helper(4);
+  cpuid_with_eax(0x80000004);
+  intel_fill_brand_string_helper(8);
+}
 
 
 int main() {
@@ -304,6 +324,9 @@ int main() {
     std::cout << processor_signature << std::endl;
     std::cout << processor_signature.full_bit_string << std::endl;
     std::cout << "Processor signature: " << intel_processor_signature_string() << std::endl;
+    
+    intel_fill_brand_string();
+    std::cout << "Processor brand string: " << brand_string << std::endl;
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
