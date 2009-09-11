@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cassert>
 #include <string>
+#include <vector>
 
 typedef unsigned int uint;
 
@@ -79,6 +80,26 @@ struct tag_processor_cache_descriptor {
 struct tag_processor_cache_descriptors {
   tag_processor_cache_descriptor TLBi, TLBd, L1i, L1d, L2, L3;
 } processor_cache_descriptors;
+
+struct tag_processor_cache_parameter_set {
+  int reserved_APICS;
+  int sharing_threads;
+  bool fully_associative;
+  bool self_initializing_cache_level;
+  int cache_level;
+  int cache_type;
+  int ways;
+  int physical_line_partitions;
+  int system_coherency_line_size;
+  int sets;
+  bool inclusive;
+  // the description for EDX[1] and EDX[0] is virtually identical!
+  bool inclusive_behavior;
+                                        
+  int size_in_bytes;
+};
+
+std::vector<tag_processor_cache_parameter_set> processor_cache_parameters;
 
 char brand_string[48] = { '\0' };
 
@@ -170,6 +191,13 @@ void cpuid_with_eax(uint in_eax) {
           );
 }
 
+void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
+  __asm__("cpuid"
+          : "=a"(eax), "=b"(ebx), "=d"(edx), "=c"(ecx) // output
+          : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
+          );
+}
+
 void intel_fill_processor_signature() {
   cpuid_with_eax(1);
   processor_signature.full_bit_string  = eax;
@@ -257,6 +285,48 @@ void intel_decode_cache_descriptor(unsigned char v) {
   }
 }
 
+void intel_add_processor_cache_parameters() {
+  tag_processor_cache_parameter_set   params; 
+  
+  params.reserved_APICS                = MASK_RANGE_IN(eax, 31, 26) + 1;
+  params.sharing_threads               = MASK_RANGE_IN(eax, 25, 14) + 1;
+  params.fully_associative             = BIT_IS_SET(eax, 9);
+  params.self_initializing_cache_level = BIT_IS_SET(eax, 8);
+  params.cache_level                   = MASK_RANGE_IN(eax, 7, 5);
+  params.cache_type                    = MASK_RANGE_IN(eax, 4, 0);
+  params.ways                          = MASK_RANGE_IN(ebx, 31, 22) + 1;
+  params.physical_line_partitions      = MASK_RANGE_IN(ebx, 21, 12) + 1;
+  params.system_coherency_line_size    = MASK_RANGE_IN(ebx, 11, 0) + 1;
+  params.sets                          = ecx + 1;
+  params.inclusive                     = BIT_IS_SET(edx, 1);
+  params.inclusive_behavior            = BIT_IS_SET(edx, 0);
+  
+  params.size_in_bytes = params.ways * params.physical_line_partitions
+                       * params.system_coherency_line_size * params.sets;
+                                        
+  processor_cache_parameters.push_back(params);
+}
+
+
+std::ostream& operator<<(std::ostream& out,
+                         const tag_processor_cache_parameter_set& params) {
+  return out << "cache {" << std::endl
+              << "\treserved APICS:      " << params.reserved_APICS                << std::endl
+              << "\tsharing threads:     " << params.sharing_threads               << std::endl
+              << "\tfully associative?   " << params.fully_associative             << std::endl
+              << "\tself init cache lvl: " << params.self_initializing_cache_level << std::endl
+              << "\tcache level:         " << params.cache_level                   << std::endl
+              << "\tcache type:          " << params.cache_type                    << std::endl
+              << "\tnumber of ways:      " << params.ways                          << std::endl
+              << "\tphys line partition: " << params.physical_line_partitions      << std::endl
+              << "\tline size:           " << params.system_coherency_line_size    << std::endl
+              << "\tnumber of sets:      " << params.sets                          << std::endl
+              << "\tinclusive?           " << params.inclusive                     << std::endl
+              << "\tinclusive behavior?  " << params.inclusive_behavior            << std::endl
+              << "\tcache size in bytes: " << params.size_in_bytes                 << std::endl
+              << "}";
+}
+
 void intel_fill_processor_caches() {
   processor_cache_descriptors.TLBi.entries_or_linesize = 0;
   processor_cache_descriptors.TLBd.entries_or_linesize = 0;
@@ -268,6 +338,17 @@ void intel_fill_processor_caches() {
   cpuid_with_eax(2);
  
   // TODO: function 4
+  uint in_ecx = 0;
+  cpuid_with_eax_and_ecx(4, in_ecx);
+  do {
+    intel_add_processor_cache_parameters();
+    cpuid_with_eax_and_ecx(4, ++in_ecx);
+  } while(MASK_RANGE_IN(eax, 4, 0) != 0);
+  
+  for (int i = 0; i < processor_cache_parameters.size(); ++i) {
+    std::cout << processor_cache_parameters[i] << std::endl;
+  }
+  
 }
 
 // TODO: test EFLAGS first
@@ -327,6 +408,8 @@ int main() {
     
     intel_fill_brand_string();
     std::cout << "Processor brand string: " << brand_string << std::endl;
+    
+    intel_fill_processor_caches();
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
