@@ -68,6 +68,11 @@ struct tag_processor_features {
   bool aes;
   
   int threads; // total, or per core?
+  
+  struct tag_monitor_features {
+    int min_line_size;
+    int max_line_size;
+  } monitor_features;
 } processor_features;
 
 struct tag_processor_cache_descriptor {
@@ -237,7 +242,50 @@ void intel_fill_processor_features() {
   processor_features.movbe                     = BIT_IS_SET(ecx, 22);
   processor_features.popcnt                    = BIT_IS_SET(ecx, 23);
   processor_features.aes                       = BIT_IS_SET(ecx, 25);
+  
+  if (processor_features.monitor) {
+    cpuid_with_eax(5);
+    processor_features.monitor_features.min_line_size = MASK_RANGE_IN(eax, 15, 0);
+    processor_features.monitor_features.max_line_size = MASK_RANGE_IN(ebx, 15, 0);
+  } else {
+    processor_features.monitor_features.min_line_size = 0;
+    processor_features.monitor_features.max_line_size = 0;
+  }
 }
+
+
+std::ostream& operator<<(std::ostream& out,
+                         const tag_processor_features& feats) {
+  return out << "features {" << std::endl
+ << "\tpage_size_extension      " << feats.page_size_extension      << std::endl
+ << "\ttime_stamp_counter       " << feats.time_stamp_counter       << std::endl
+ << "\tmodel_specific_registers " << feats.model_specific_registers << std::endl
+ << "\tcmpxchg8                 " << feats.cmpxchg8                 << std::endl
+ << "\tcmov                     " << feats.cmov                     << std::endl
+ << "\tclflush                  " << feats.clflush                  << std::endl
+ << "\tdebug_store              " << feats.debug_store              << std::endl
+ << "\tmmx                      " << feats.mmx                      << std::endl
+ << "\tsse                      " << feats.sse                      << std::endl
+ << "\tsse2                     " << feats.sse2                     << std::endl
+ << "\tsse3                     " << feats.sse3                     << std::endl
+ << "\tpclmuldq                 " << feats.pclmuldq                 << std::endl
+ << "\tdebug_store_64           " << feats.debug_store_64           << std::endl
+ << "\tmonitor                  " << feats.monitor                  << std::endl
+ << "\tvmx                      " << feats.vmx                      << std::endl
+ << "\tsse3b                    " << feats.sse3b                    << std::endl
+ << "\tcmpxchg16                " << feats.cmpxchg16                << std::endl
+ << "\tperf_cap_msr             " << feats.perf_cap_msr             << std::endl
+ << "\tsse41                    " << feats.sse41                    << std::endl
+ << "\tsse42                    " << feats.sse42                    << std::endl
+ << "\tmovbe                    " << feats.movbe                    << std::endl
+ << "\tpopcnt                   " << feats.popcnt                   << std::endl
+ << "\taes                      " << feats.aes                      << std::endl
+ << "\tthreads                  " << feats.threads                  << std::endl 
+ << "\tmonitor line size min    " << feats.monitor_features.min_line_size  << std::endl
+ << "\tmonitor line size max    " << feats.monitor_features.max_line_size  << std::endl
+              << "}";
+}
+
 
 void intel_set_cache_properties(tag_processor_cache_descriptor& cache,
       int size, int ways, int entries_or_linesize, bool sectored = false) {
@@ -344,11 +392,6 @@ void intel_fill_processor_caches() {
     intel_add_processor_cache_parameters();
     cpuid_with_eax_and_ecx(4, ++in_ecx);
   } while(MASK_RANGE_IN(eax, 4, 0) != 0);
-  
-  for (int i = 0; i < processor_cache_parameters.size(); ++i) {
-    std::cout << processor_cache_parameters[i] << std::endl;
-  }
-  
 }
 
 // TODO: test EFLAGS first
@@ -410,6 +453,12 @@ int main() {
     std::cout << "Processor brand string: " << brand_string << std::endl;
     
     intel_fill_processor_caches();
+    for (int i = 0; i < processor_cache_parameters.size(); ++i) {
+      std::cout << processor_cache_parameters[i] << std::endl;
+    }
+    
+    intel_fill_processor_features();
+    std::cout << processor_features << std::endl;
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
