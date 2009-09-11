@@ -69,6 +69,9 @@ struct tag_processor_features {
   
   int threads; // total, or per core?
   
+  bool x86_64;
+  bool x86_64_lahf;
+  
   struct tag_monitor_features {
     int min_line_size;
     int max_line_size;
@@ -243,6 +246,10 @@ void intel_fill_processor_features() {
   processor_features.popcnt                    = BIT_IS_SET(ecx, 23);
   processor_features.aes                       = BIT_IS_SET(ecx, 25);
   
+  cpuid_with_eax(0x80000001);
+  processor_features.x86_64                    = BIT_IS_SET(edx, 29);
+  processor_features.x86_64_lahf               = BIT_IS_SET(ecx,  0);
+  
   if (processor_features.monitor) {
     cpuid_with_eax(5);
     processor_features.monitor_features.min_line_size = MASK_RANGE_IN(eax, 15, 0);
@@ -280,7 +287,9 @@ std::ostream& operator<<(std::ostream& out,
  << "\tmovbe                    " << feats.movbe                    << std::endl
  << "\tpopcnt                   " << feats.popcnt                   << std::endl
  << "\taes                      " << feats.aes                      << std::endl
- << "\tthreads                  " << feats.threads                  << std::endl 
+ << "\tthreads                  " << feats.threads                  << std::endl
+ << "\tx86_64?                  " << feats.x86_64                   << std::endl
+ << "\tx86_64 lahf_sahf?        " << feats.x86_64_lahf              << std::endl
  << "\tmonitor line size min    " << feats.monitor_features.min_line_size  << std::endl
  << "\tmonitor line size max    " << feats.monitor_features.max_line_size  << std::endl
               << "}";
@@ -355,6 +364,15 @@ void intel_add_processor_cache_parameters() {
   processor_cache_parameters.push_back(params);
 }
 
+const char* cache_type_description(int type) {
+  switch (type) {
+    case 0: return "Null, no more caches";
+    case 1: return "Data cache";
+    case 2: return "Instruction cache";
+    case 3: return "Unified cache";
+  }
+  return "Unknown cache type";
+}
 
 std::ostream& operator<<(std::ostream& out,
                          const tag_processor_cache_parameter_set& params) {
@@ -364,7 +382,7 @@ std::ostream& operator<<(std::ostream& out,
               << "\tfully associative?   " << params.fully_associative             << std::endl
               << "\tself init cache lvl: " << params.self_initializing_cache_level << std::endl
               << "\tcache level:         " << params.cache_level                   << std::endl
-              << "\tcache type:          " << params.cache_type                    << std::endl
+              << "\tcache type:          " << cache_type_description(params.cache_type) << std::endl
               << "\tnumber of ways:      " << params.ways                          << std::endl
               << "\tphys line partition: " << params.physical_line_partitions      << std::endl
               << "\tline size:           " << params.system_coherency_line_size    << std::endl
@@ -396,7 +414,6 @@ void intel_fill_processor_caches() {
 
 // TODO: test EFLAGS first
 // TODO: function 5
-// TODO: function 8000_000[234]
 // TODO: function 8000_0006
 // TODO: function 8000_0008
 // TODO: denormals-are-zero
