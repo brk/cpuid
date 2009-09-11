@@ -206,8 +206,8 @@ void intel_fill_processor_features() {
 }
 
 void intel_set_cache_properties(tag_processor_cache& cache,
-      int page_size, int ways, int entries_or_linesize, bool sectored = false) {
-  cache.page_size = page_size;
+      int size, int ways, int entries_or_linesize, bool sectored = false) {
+  cache.size = size;
   cache.set_assoc_ways = ways;
   cache.entries_or_linesize = entries_or_linesize;
   cache.sectored = sectored;
@@ -252,12 +252,12 @@ void intel_decode_cache_descriptor(unsigned char v) {
 }
 
 void intel_fill_processor_caches() {
-  processor_caches.TLBi.entries = 0;
-  processor_caches.TLBd.entries = 0;
-  processor_caches.L1i.entries = 0;
-  processor_caches.L1d.entries = 0;
-  processor_caches.L2.entries = 0;
-  processor_caches.L3.entries = 0;
+  processor_caches.TLBi.entries_or_linesize = 0;
+  processor_caches.TLBd.entries_or_linesize = 0;
+  processor_caches.L1i.entries_or_linesize = 0;
+  processor_caches.L1d.entries_or_linesize = 0;
+  processor_caches.L2.entries_or_linesize = 0;
+  processor_caches.L3.entries_or_linesize = 0;
   
   cpuid_with_eax(2);
  
