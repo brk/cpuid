@@ -320,16 +320,38 @@ void intel_fill_processor_features() {
     features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
   
-    for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
+  processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
+  
+  cpuid_with_eax(0x80000001);
+  for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
     feature_bit f(intel_ext_feature_bits[i]);
     features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
   
+  if (features["monitor"]) {
+    cpuid_with_eax(5);
+    processor_features.monitor_features.min_line_size = MASK_RANGE_IN(eax, 15, 0);
+    processor_features.monitor_features.max_line_size = MASK_RANGE_IN(ebx, 15, 0);
+  } else {
+    processor_features.monitor_features.min_line_size = 0;
+    processor_features.monitor_features.max_line_size = 0;
+  }
+}
+
+void amd_fill_processor_features() {
+  cpuid_with_eax(1);
+  for (int i = 0; i < ARRAY_SIZE(amd_feature_bits); ++i) {
+    feature_bit f(amd_feature_bits[i]);
+    features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
+  
   processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
-             
+  
   cpuid_with_eax(0x80000001);
-  features["x86_64"] = BIT_IS_SET(edx, 29);
-  features["lahf"]   = BIT_IS_SET(ecx,  0);
+  for (int i = 0; i < ARRAY_SIZE(amd_ext_feature_bits); ++i) {
+    feature_bit f(amd_ext_feature_bits[i]);
+    features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
   
   if (features["monitor"]) {
     cpuid_with_eax(5);
@@ -344,16 +366,16 @@ void intel_fill_processor_features() {
 
 std::ostream& operator<<(std::ostream& out,
                          const tag_processor_features& feats) {
-  out << "\t" << quote("features") << ": {" << std::endl;
+  out << quote("features") << ": {" << std::endl;
   for (features_map::iterator it = features.begin(); it != features.end(); ++it) {
-    out << "\t\t\"" << (*it).first << "\": " << (*it).second << std::endl;
+    out << "\t\"" << (*it).first << "\": " << (*it).second << std::endl;
   }
+  out << "}," << std::endl;
   
-  return out
- << "\tthreads                  " << feats.threads                  << std::endl
- << "\tmonitor line size min    " << feats.monitor_features.min_line_size  << std::endl
- << "\tmonitor line size max    " << feats.monitor_features.max_line_size  << std::endl
-              << "}";
+ return out
+ << "\"threads\": " << feats.threads << "," << std::endl
+ << "\"monitor_line_size_min\": " << feats.monitor_features.min_line_size << "," << std::endl
+ << "\"monitor_line_size_max\": " << feats.monitor_features.max_line_size << "," << std::endl;
 }
 
 
@@ -543,8 +565,6 @@ int main() {
   init_all_features_to_false();
   
   if (std::string("GenuineIntel") == vendor_id) {
-    //intel_fill_processor_signature();
-    
     intel_fill_processor_caches();
     std::cout << quote("caches") << ": {" << std::endl;
     for (int i = 0; i < processor_cache_parameters.size(); ++i) {
@@ -555,7 +575,10 @@ int main() {
     intel_fill_processor_features();
     std::cout << processor_features << std::endl;
     
-    intel_detect_processor_topology();
+    //intel_detect_processor_topology();
+  } else if (std::string("AuthenticAMD") == vendor_id) {
+    amd_fill_processor_features();
+    std::cout << processor_features << std::endl;
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
