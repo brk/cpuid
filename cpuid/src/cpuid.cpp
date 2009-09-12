@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 #include <iomanip>
+#include <map>
+#include <sstream>
 
 typedef unsigned int uint;
 
@@ -28,51 +30,131 @@ typedef unsigned int uint;
 
 #define BIT_IS_SET(v, bit) ((v & BIT(bit)) != 0)
 
+#define ARRAY_SIZE(a) (sizeof((a))/sizeof((a)[0]))
+
+std::string quote(std::string in) {
+  std::stringstream ss;
+  ss << "\"" << in << "\"";
+  return ss.str();
+}
+
 // http://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html
 
 // http://www.intel.com/Assets/PDF/appnote/241618.pdf page 13 and 14
 
 char vendor_id[13];
-struct tag_processor_signature {
-  uint full_bit_string;
-  uint extended_family;
-  uint extended_model;
-  uint processor_type;
-  uint family_code;
-  uint model_number;
-  uint stepping_id;
-} processor_signature;
 
-struct tag_processor_features {
-  bool page_size_extension;
-  bool time_stamp_counter;
-  bool model_specific_registers;
-  bool cmpxchg8;
-  bool cmov;
-  bool clflush;
-  bool debug_store;
-  bool mmx;
-  bool sse;
-  bool sse2;
-  bool sse3;
-  bool pclmuldq;
-  bool cmpxchg16;
-  bool debug_store_64;
-  bool monitor;
-  bool vmx;
-  bool sse3b;
-  bool perf_cap_msr;
-  bool sse41;
-  bool sse42;
-  bool x2apic;
-  bool movbe;
-  bool popcnt;
-  bool aes;
+// global register locatiosn and variable aliases
+enum REGISTER { EAX, EBX, ECX, EDX };
+uint reg[4] = { 0 };
+uint& eax = reg[0]; uint& ebx = reg[1]; uint& ecx = reg[2]; uint& edx = reg[3];
+
+typedef std::map<std::string, bool> features_map;
+features_map features;
+
+
+struct feature_bit { REGISTER reg; int offset; const char* name; };
+
+feature_bit intel_feature_bits[] = { // EAX = 1
+  { EDX,  3, "pse" },
+  { EDX,  4, "tsc" },
+  { EDX,  5, "msr" },
+  { EDX,  8, "cx8" },
+  { EDX, 15, "cmov" },
+  { EDX, 16, "pat" },
+  { EDX, 17, "pse36" },
+  { EDX, 19, "clflush" },
+  { EDX, 21, "ds" },
+  { EDX, 23, "mmx" },
+  { EDX, 25, "sse" },
+  { EDX, 26, "sse2" },
+  { EDX, 27, "ss" },
+  { EDX, 28, "htt" },
   
+  { ECX,  0, "sse3" },
+  { ECX,  1, "pclmuldq" },
+  { ECX,  2, "dtes64" },
+  { ECX,  3, "monitor" },
+  { ECX,  4, "ds_cpl" },
+  { ECX,  5, "vmx" },
+  { ECX,  6, "smx" },
+  { ECX,  9, "ssse3" },
+  { ECX, 13, "cx16" },
+  { ECX, 15, "pdcm" },
+  { ECX, 19, "sse41" },
+  { ECX, 20, "sse42" },
+  { ECX, 21, "x2apic" },
+  { ECX, 22, "movbe" },
+  { ECX, 23, "popcnt" },
+  { ECX, 25, "aes" }
+};
+
+feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
+  { EDX, 29, "x86_64" },
+  { ECX,  0, "lahf" }
+};
+
+feature_bit amd_feature_bits[] = {
+  { EDX,  3, "pse" },
+  { EDX,  4, "tsc" },
+  { EDX,  5, "msr" },
+  { EDX,  8, "cx8" },
+  { EDX, 15, "cmov" },
+  { EDX, 16, "pat" },
+  { EDX, 17, "pse36" },
+  { EDX, 19, "clflush" },
+  { EDX, 23, "mmx" },
+  { EDX, 25, "sse" },
+  { EDX, 26, "sse2" },
+  { EDX, 28, "htt" },
+  
+  { ECX,  0, "sse3" },
+  { ECX,  3, "monitor" },
+  { ECX,  9, "ssse3" },
+  { ECX, 13, "cx16" },
+  { ECX, 19, "sse41" },
+  { ECX, 23, "popcnt" },
+  { ECX, 31, "raz" }
+};
+
+feature_bit amd_ext_feature_bits[] = { // EAX = 0x80000001
+  { ECX, 10, "ibs" },
+  { ECX,  8, "3dnowprefetch" },
+  { ECX,  7, "misalignsse" },
+  { ECX,  6, "sse4a" },
+  { ECX,  5, "abm" },
+  { ECX,  2, "svm" },
+  
+  { EDX, 31, "3dnow" },
+  { EDX, 30, "3dnowext" },
+  { EDX, 29, "x86_64" },
+  { EDX, 27, "rdtscp" },
+  { EDX, 22, "mmxext" },
+  { EDX, 15, "cmov" },
+  { EDX,  8, "cx8" },
+  { EDX,  5, "msr" },
+  { EDX,  3, "pse" }
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+void init_all_features_to_false() {
+  for (int i = 0; i < ARRAY_SIZE(intel_feature_bits); ++i) {
+    features[intel_feature_bits[i].name] = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
+    features[intel_ext_feature_bits[i].name] = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE(amd_feature_bits); ++i) {
+    features[amd_feature_bits[i].name] = false;
+  }
+  for (int i = 0; i < ARRAY_SIZE(amd_ext_feature_bits); ++i) {
+    features[amd_ext_feature_bits[i].name] = false;
+  }
+}
+
+struct tag_processor_features {;
   int threads; // total, or per core?
-  
-  bool x86_64;
-  bool x86_64_lahf;
   
   struct tag_monitor_features {
     int min_line_size;
@@ -113,86 +195,109 @@ std::vector<tag_processor_cache_parameter_set> processor_cache_parameters;
 
 char brand_string[48] = { '\0' };
 
-// global register variables
-uint eax, ebx, ecx, edx;
+#if 0
+  struct tag_processor_signature {
+    uint full_bit_string;
+    uint extended_family;
+    uint extended_model;
+    uint processor_type;
+    uint family_code;
+    uint model_number;
+    uint stepping_id;
+  } processor_signature;
+  
 
-const char* intel_processor_type_string() {
-  switch (processor_signature.processor_type) {
-    case 0b00: return "Original OEM Processor";
-    case 0b01: return "OverDrive Processor";
-    case 0b10: return "Dual Processor";
+  const char* intel_processor_type_string() {
+    switch (processor_signature.processor_type) {
+      case 0b00: return "Original OEM Processor";
+      case 0b01: return "OverDrive Processor";
+      case 0b10: return "Dual Processor";
+    }
+    return "Unknown processor type";
   }
-  return "Unknown processor type";
-}
-
-const char* intel_extmodel_0_signature_string() {
-  switch (processor_signature.family_code) {
-    case 0b0011: return "i386";
-    case 0b0100: return "i486";
-    case 0b0101: return "i486";
-    case 0b0110:
-      switch (processor_signature.model_number) {
-        case 0b0001: return "Pentium Pro";
-        case 0b0011: // OverDrive
-        case 0b0101: return "Pentium II";
-        case 0b0110: return "Celeron";
-        case 0b0111:
-        case 0b1000:
-        case 0b1010:
-        case 0b1011: return "Pentium III";
-        case 0b1001: return "Pentium M"; 
-        case 0b1101: return "Pentium M (90 nm)";
-        case 0b1110: return "Core Duo or Core Solo (65nm)";
-        case 0b1111: return "Core 2 Duo or Core 2 Quad (65nm)";
-      }
-      break;
-    case 0b1111:
-      switch (processor_signature.model_number) {
-        case 0b0000: // model 00h
-        case 0b0001: return "Pentium 4 (180 nm)"; // model 01h
-        case 0b0010: return "Pentium 4 (130 nm)"; // model 02h
-        case 0b0011: // model 03h
-        case 0b0100: return "Pentium 4 (90 nm)"; // model 04h
-        case 0b0110: return "Pentium 4 (65 nm)"; // model 06h
-      }
-      break;
+  
+  const char* intel_extmodel_0_signature_string() {
+    switch (processor_signature.family_code) {
+      case 0b0011: return "i386";
+      case 0b0100: return "i486";
+      case 0b0101: return "i486";
+      case 0b0110:
+        switch (processor_signature.model_number) {
+          case 0b0001: return "Pentium Pro";
+          case 0b0011: // OverDrive
+          case 0b0101: return "Pentium II";
+          case 0b0110: return "Celeron";
+          case 0b0111:
+          case 0b1000:
+          case 0b1010:
+          case 0b1011: return "Pentium III";
+          case 0b1001: return "Pentium M"; 
+          case 0b1101: return "Pentium M (90 nm)";
+          case 0b1110: return "Core Duo or Core Solo (65nm)";
+          case 0b1111: return "Core 2 Duo or Core 2 Quad (65nm)";
+        }
+        break;
+      case 0b1111:
+        switch (processor_signature.model_number) {
+          case 0b0000: // model 00h
+          case 0b0001: return "Pentium 4 (180 nm)"; // model 01h
+          case 0b0010: return "Pentium 4 (130 nm)"; // model 02h
+          case 0b0011: // model 03h
+          case 0b0100: return "Pentium 4 (90 nm)"; // model 04h
+          case 0b0110: return "Pentium 4 (65 nm)"; // model 06h
+        }
+        break;
+    }
+    return "Unknown processor signature";
   }
-  return "Unknown processor signature";
-}
-
-const char* intel_extmodel_1_signature_string() {
-  switch (processor_signature.family_code) {
-    case 0b0110:
-      switch (processor_signature.model_number) {
-        case 0b0110: return "Celeron (65 nm)"; // model 16h
-        case 0b0111: return "Core 2 Extreme (45 nm)"; // model 17h
-        case 0b1100: return "Atom (45 nm)";
-        case 0b1010: return "Core i7 (45 nm)";
-        case 0b1101: return "Xeon MP (45 nm)";
-      }
-      break;
+  
+  const char* intel_extmodel_1_signature_string() {
+    switch (processor_signature.family_code) {
+      case 0b0110:
+        switch (processor_signature.model_number) {
+          case 0b0110: return "Celeron (65 nm)"; // model 16h
+          case 0b0111: return "Core 2 Extreme (45 nm)"; // model 17h
+          case 0b1100: return "Atom (45 nm)";
+          case 0b1010: return "Core i7 (45 nm)";
+          case 0b1101: return "Xeon MP (45 nm)";
+        }
+        break;
+    }
+    return "Unknown processor signature";
   }
-  return "Unknown processor signature";
-}
-
-const char* intel_processor_signature_string() {
-  switch (processor_signature.extended_model) {
-  case 0: return intel_extmodel_0_signature_string();
-  case 1: return intel_extmodel_1_signature_string();
+  
+  const char* intel_processor_signature_string() {
+    switch (processor_signature.extended_model) {
+    case 0: return intel_extmodel_0_signature_string();
+    case 1: return intel_extmodel_1_signature_string();
+    }
+    return "Unknown processor signature (due to unknown extended model)";
   }
-  return "Unknown processor signature (due to unknown extended model)";
-}
+  
+  void intel_fill_processor_signature() {
+    cpuid_with_eax(1);
+    processor_signature.full_bit_string  = eax;
+    processor_signature.stepping_id      = MASK_RANGE_IN(eax,  3, 0);
+    processor_signature.model_number     = MASK_RANGE_EX(eax,  7, 3);
+    processor_signature.family_code      = MASK_RANGE_EX(eax, 11, 7);
+    processor_signature.processor_type   = MASK_RANGE_EX(eax, 13, 11);
+    processor_signature.extended_model   = MASK_RANGE_EX(eax, 19, 15);
+    processor_signature.extended_family  = MASK_RANGE_EX(eax, 27, 19);
+  }
+  
+  std::ostream& operator<<(std::ostream& out, const tag_processor_signature& sig) {
+    return out << "{" << std::endl
+                << "\textended family: " << sig.extended_family << std::endl
+                << "\textended model:  " << sig.extended_model << std::endl
+                << "\tprocessor type:  " << sig.processor_type << std::endl
+                << "\tfamily code:     " << sig.family_code << std::endl
+                << "\tmodel_number:    " << sig.model_number << std::endl
+                << "\tstepping id:     " << sig.stepping_id << std::endl
+                << "}";
+  }
 
-std::ostream& operator<<(std::ostream& out, const tag_processor_signature& sig) {
-  return out << "{" << std::endl
-              << "\textended family: " << sig.extended_family << std::endl
-              << "\textended model:  " << sig.extended_model << std::endl
-              << "\tprocessor type:  " << sig.processor_type << std::endl
-              << "\tfamily code:     " << sig.family_code << std::endl
-              << "\tmodel_number:    " << sig.model_number << std::endl
-              << "\tstepping id:     " << sig.stepping_id << std::endl
-              << "}";
-}
+#endif
+
 
 void cpuid_with_eax(uint in_eax) {
   __asm__("cpuid"
@@ -208,52 +313,25 @@ void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
           );
 }
 
-void intel_fill_processor_signature() {
-  cpuid_with_eax(1);
-  processor_signature.full_bit_string  = eax;
-  processor_signature.stepping_id      = MASK_RANGE_IN(eax,  3, 0);
-  processor_signature.model_number     = MASK_RANGE_EX(eax,  7, 3);
-  processor_signature.family_code      = MASK_RANGE_EX(eax, 11, 7);
-  processor_signature.processor_type   = MASK_RANGE_EX(eax, 13, 11);
-  processor_signature.extended_model   = MASK_RANGE_EX(eax, 19, 15);
-  processor_signature.extended_family  = MASK_RANGE_EX(eax, 27, 19);
-}
-
 void intel_fill_processor_features() {
   cpuid_with_eax(1);
-  processor_features.page_size_extension       = BIT_IS_SET(edx,  3);
-  processor_features.time_stamp_counter        = BIT_IS_SET(edx,  4);
-  processor_features.model_specific_registers  = BIT_IS_SET(edx,  5);
-  processor_features.cmpxchg8                  = BIT_IS_SET(edx,  8);
-  processor_features.cmov                      = BIT_IS_SET(edx, 15);
-  processor_features.clflush                   = BIT_IS_SET(edx, 19);
-  processor_features.debug_store               = BIT_IS_SET(edx, 21);
-  processor_features.mmx                       = BIT_IS_SET(edx, 23);
-  processor_features.sse                       = BIT_IS_SET(edx, 25);
-  processor_features.sse2                      = BIT_IS_SET(edx, 26);
+  for (int i = 0; i < ARRAY_SIZE(intel_feature_bits); ++i) {
+    feature_bit f(intel_feature_bits[i]);
+    features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
+  
+    for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
+    feature_bit f(intel_ext_feature_bits[i]);
+    features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
   
   processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
              
-  processor_features.sse3                      = BIT_IS_SET(ecx,  0);
-  processor_features.pclmuldq                  = BIT_IS_SET(ecx,  1);
-  processor_features.debug_store_64            = BIT_IS_SET(ecx,  2);
-  processor_features.monitor                   = BIT_IS_SET(ecx,  3);
-  processor_features.vmx                       = BIT_IS_SET(ecx,  5);
-  processor_features.sse3b                     = BIT_IS_SET(ecx,  9);
-  processor_features.cmpxchg16                 = BIT_IS_SET(ecx, 13);
-  processor_features.perf_cap_msr              = BIT_IS_SET(ecx, 15);
-  processor_features.sse41                     = BIT_IS_SET(ecx, 19);
-  processor_features.sse42                     = BIT_IS_SET(ecx, 20);
-  processor_features.x2apic                    = BIT_IS_SET(ecx, 21);
-  processor_features.movbe                     = BIT_IS_SET(ecx, 22);
-  processor_features.popcnt                    = BIT_IS_SET(ecx, 23);
-  processor_features.aes                       = BIT_IS_SET(ecx, 25);
-  
   cpuid_with_eax(0x80000001);
-  processor_features.x86_64                    = BIT_IS_SET(edx, 29);
-  processor_features.x86_64_lahf               = BIT_IS_SET(ecx,  0);
+  features["x86_64"] = BIT_IS_SET(edx, 29);
+  features["lahf"]   = BIT_IS_SET(ecx,  0);
   
-  if (processor_features.monitor) {
+  if (features["monitor"]) {
     cpuid_with_eax(5);
     processor_features.monitor_features.min_line_size = MASK_RANGE_IN(eax, 15, 0);
     processor_features.monitor_features.max_line_size = MASK_RANGE_IN(ebx, 15, 0);
@@ -266,33 +344,13 @@ void intel_fill_processor_features() {
 
 std::ostream& operator<<(std::ostream& out,
                          const tag_processor_features& feats) {
-  return out << "features {" << std::endl
- << "\tpage_size_extension      " << feats.page_size_extension      << std::endl
- << "\ttime_stamp_counter       " << feats.time_stamp_counter       << std::endl
- << "\tmodel_specific_registers " << feats.model_specific_registers << std::endl
- << "\tcmpxchg8                 " << feats.cmpxchg8                 << std::endl
- << "\tcmov                     " << feats.cmov                     << std::endl
- << "\tclflush                  " << feats.clflush                  << std::endl
- << "\tdebug_store              " << feats.debug_store              << std::endl
- << "\tmmx                      " << feats.mmx                      << std::endl
- << "\tsse                      " << feats.sse                      << std::endl
- << "\tsse2                     " << feats.sse2                     << std::endl
- << "\tsse3                     " << feats.sse3                     << std::endl
- << "\tpclmuldq                 " << feats.pclmuldq                 << std::endl
- << "\tdebug_store_64           " << feats.debug_store_64           << std::endl
- << "\tmonitor                  " << feats.monitor                  << std::endl
- << "\tvmx                      " << feats.vmx                      << std::endl
- << "\tsse3b                    " << feats.sse3b                    << std::endl
- << "\tcmpxchg16                " << feats.cmpxchg16                << std::endl
- << "\tperf_cap_msr             " << feats.perf_cap_msr             << std::endl
- << "\tsse41                    " << feats.sse41                    << std::endl
- << "\tsse42                    " << feats.sse42                    << std::endl
- << "\tmovbe                    " << feats.movbe                    << std::endl
- << "\tpopcnt                   " << feats.popcnt                   << std::endl
- << "\taes                      " << feats.aes                      << std::endl
+  out << "\t" << quote("features") << ": {" << std::endl;
+  for (features_map::iterator it = features.begin(); it != features.end(); ++it) {
+    out << "\t\t\"" << (*it).first << "\": " << (*it).second << std::endl;
+  }
+  
+  return out
  << "\tthreads                  " << feats.threads                  << std::endl
- << "\tx86_64?                  " << feats.x86_64                   << std::endl
- << "\tx86_64 lahf_sahf?        " << feats.x86_64_lahf              << std::endl
  << "\tmonitor line size min    " << feats.monitor_features.min_line_size  << std::endl
  << "\tmonitor line size max    " << feats.monitor_features.max_line_size  << std::endl
               << "}";
@@ -367,33 +425,26 @@ void intel_add_processor_cache_parameters() {
   processor_cache_parameters.push_back(params);
 }
 
-const char* cache_type_description(int type) {
-  switch (type) {
-    case 0: return "Null, no more caches";
-    case 1: return "Data cache";
-    case 2: return "Instruction cache";
-    case 3: return "Unified cache";
+const char* cache_type_tag(int type) {
+    switch (type) {
+    case 0: return "-";
+    case 1: return "d"; // data
+    case 2: return "i"; // instruction
+    case 3: return ""; // unified
   }
-  return "Unknown cache type";
+  return "?";
 }
 
 std::ostream& operator<<(std::ostream& out,
                          const tag_processor_cache_parameter_set& params) {
-  return out << "cache {" << std::endl
-              << "\treserved APICS:      " << params.reserved_APICS                << std::endl
-              << "\tsharing threads:     " << params.sharing_threads               << std::endl
-              << "\tfully associative?   " << params.fully_associative             << std::endl
-              << "\tself init cache lvl: " << params.self_initializing_cache_level << std::endl
-              << "\tcache level:         " << params.cache_level                   << std::endl
-              << "\tcache type:          " << cache_type_description(params.cache_type) << std::endl
-              << "\tnumber of ways:      " << params.ways                          << std::endl
-              << "\tphys line partition: " << params.physical_line_partitions      << std::endl
-              << "\tline size:           " << params.system_coherency_line_size    << std::endl
-              << "\tnumber of sets:      " << params.sets                          << std::endl
-              << "\tinclusive?           " << params.inclusive                     << std::endl
-              << "\tinclusive behavior?  " << params.inclusive_behavior            << std::endl
-              << "\tcache size in bytes: " << params.size_in_bytes                 << std::endl
-              << "}";
+  return out << "\t\"L" << params.cache_level << cache_type_tag(params.cache_type) << "\": {" << std::endl
+              << "\t\t\"reserved_apics\":  " << params.reserved_APICS                << std::endl
+              << "\t\t\"sharing_threads\": " << params.sharing_threads               << std::endl
+              << "\t\t\"ways\":            " << params.ways                          << std::endl
+              << "\t\t\"line_size\":       " << params.system_coherency_line_size    << std::endl
+              << "\t\t\"sets\":            " << params.sets                          << std::endl
+              << "\t\t\"total_size\":      " << params.size_in_bytes                 << std::endl
+              << "\t\t}";
 }
 
 void intel_fill_processor_caches() {
@@ -447,7 +498,7 @@ void intel_fill_brand_string_helper(int offset) {
   ((uint*)brand_string)[offset + 3] = edx;
 }
 
-void intel_fill_brand_string() {
+void cpuid_fill_brand_string() {
   cpuid_with_eax(0x80000002);
   intel_fill_brand_string_helper(0);
   cpuid_with_eax(0x80000003);
@@ -457,7 +508,7 @@ void intel_fill_brand_string() {
 }
 
 void intel_detect_processor_topology() {
-  if (processor_features.x2apic) {
+  if (features["x2apic"]) {
     cpuid_with_eax_and_ecx(0x0b, 0);
     uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0);
     
@@ -479,25 +530,27 @@ void intel_detect_processor_topology() {
 
 int main() {
   std::cout << std::boolalpha; // print bools as true/false instead of 1/0
+  std::cout << "{" << std::endl;
   
   vendor_id[12] = '\0';
   uint max_basic_eax = cpuid_vendor_id_and_max_basic_eax_input();
-  std::cout << "max basic %eax cpuid input is " << max_basic_eax << std::endl;
-  std::cout << "vendor id is '" << vendor_id << "'" << std::endl;
+  //std::cout << "max basic %eax cpuid input is " << max_basic_eax << std::endl;
+  std::cout << quote("vendor_id") << ": " << quote(vendor_id) << "," << std::endl;
+  
+  cpuid_fill_brand_string();
+  std::cout << quote("model_name") << ": "<< quote(brand_string) << "," << std::endl;
+  
+  init_all_features_to_false();
   
   if (std::string("GenuineIntel") == vendor_id) {
-    intel_fill_processor_signature();
-    std::cout << processor_signature << std::endl;
-    std::cout << processor_signature.full_bit_string << std::endl;
-    std::cout << "Processor signature: " << intel_processor_signature_string() << std::endl;
-    
-    intel_fill_brand_string();
-    std::cout << "Processor brand string: " << brand_string << std::endl;
+    //intel_fill_processor_signature();
     
     intel_fill_processor_caches();
+    std::cout << quote("caches") << ": {" << std::endl;
     for (int i = 0; i < processor_cache_parameters.size(); ++i) {
       std::cout << processor_cache_parameters[i] << std::endl;
     }
+    std::cout << "\t}" << std::endl;
     
     intel_fill_processor_features();
     std::cout << processor_features << std::endl;
@@ -506,6 +559,8 @@ int main() {
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
+  
+  std::cout << "}" << std::endl;
   
 	return 0;
 }
