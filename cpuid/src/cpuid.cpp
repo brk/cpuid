@@ -14,6 +14,8 @@
 #include <map>
 #include <sstream>
 
+#define CPUID_VERSION_STRING "2009-09-12"
+
 typedef unsigned int uint;
 
 // low bit is bit 0, high bit on IA-32 is bit 31
@@ -345,7 +347,11 @@ void amd_fill_processor_features() {
     features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
   
-  processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
+  if (features["htt"]) {
+    processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
+  } else {
+    processor_features.threads = 1;
+  }
   
   cpuid_with_eax(0x80000001);
   for (int i = 0; i < ARRAY_SIZE(amd_ext_feature_bits); ++i) {
@@ -567,10 +573,13 @@ int main() {
   if (std::string("GenuineIntel") == vendor_id) {
     intel_fill_processor_caches();
     std::cout << quote("caches") << ": {" << std::endl;
+
     for (int i = 0; i < processor_cache_parameters.size(); ++i) {
-      std::cout << processor_cache_parameters[i] << std::endl;
+      std::cout << processor_cache_parameters[i];
+      if (i != processor_cache_parameters.size() - 1) std::cout << ",";
+      std::cout << std::endl;
     }
-    std::cout << "\t}" << std::endl;
+    std::cout << "\t}," << std::endl;
     
     intel_fill_processor_features();
     std::cout << processor_features << std::endl;
@@ -583,6 +592,7 @@ int main() {
     std::cout << "Unknown vendor id!" << std::endl;
   }
   
+  std::cout << quote("cpuid_version") << ": " << quote(CPUID_VERSION_STRING) << std::endl;
   std::cout << "}" << std::endl;
   
 	return 0;
