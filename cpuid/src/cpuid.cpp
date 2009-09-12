@@ -10,6 +10,7 @@
 #include <cassert>
 #include <string>
 #include <vector>
+#include <iomanip>
 
 typedef unsigned int uint;
 
@@ -63,6 +64,7 @@ struct tag_processor_features {
   bool perf_cap_msr;
   bool sse41;
   bool sse42;
+  bool x2apic;
   bool movbe;
   bool popcnt;
   bool aes;
@@ -242,6 +244,7 @@ void intel_fill_processor_features() {
   processor_features.perf_cap_msr              = BIT_IS_SET(ecx, 15);
   processor_features.sse41                     = BIT_IS_SET(ecx, 19);
   processor_features.sse42                     = BIT_IS_SET(ecx, 20);
+  processor_features.x2apic                    = BIT_IS_SET(ecx, 21);
   processor_features.movbe                     = BIT_IS_SET(ecx, 22);
   processor_features.popcnt                    = BIT_IS_SET(ecx, 23);
   processor_features.aes                       = BIT_IS_SET(ecx, 25);
@@ -453,8 +456,30 @@ void intel_fill_brand_string() {
   intel_fill_brand_string_helper(8);
 }
 
+void intel_detect_processor_topology() {
+  if (processor_features.x2apic) {
+    cpuid_with_eax_and_ecx(0x0b, 0);
+    uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0);
+    
+    cpuid_with_eax_and_ecx(0x0b, 1);
+    uint logical_cores_per_package = MASK_RANGE_IN(ebx, 15, 0);
+    uint physical_cores_per_package = logical_cores_per_package / threads_per_core;
+    
+    std::cout << "threads per core: " << threads_per_core << std::endl;
+    std::cout << "logical per package: " << logical_cores_per_package << std::endl;
+    std::cout << "physical per package: " << physical_cores_per_package << std::endl;
+  } else {
+    std::cout << "no x2apic support" << std::endl;
+    cpuid_with_eax(1);
+    uint logical_processors_per_physical_package = MASK_RANGE_IN(ebx, 23, 16);
+    std::cout << "logical cores per physical package: " << logical_processors_per_physical_package << std::endl;  
+  }
+}
+
 
 int main() {
+  std::cout << std::boolalpha; // print bools as true/false instead of 1/0
+  
   vendor_id[12] = '\0';
   uint max_basic_eax = cpuid_vendor_id_and_max_basic_eax_input();
   std::cout << "max basic %eax cpuid input is " << max_basic_eax << std::endl;
@@ -476,6 +501,8 @@ int main() {
     
     intel_fill_processor_features();
     std::cout << processor_features << std::endl;
+    
+    intel_detect_processor_topology();
   } else {
     std::cout << "Unknown vendor id!" << std::endl;
   }
