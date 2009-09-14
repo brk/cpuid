@@ -1,4 +1,4 @@
-# CMake-driver Makefile version 1
+# CMake-driver Makefile version 2
 
 default: build
 
@@ -19,6 +19,9 @@ ${CMAKE_DIR}/Makefile: ${CMAKE_DIR}
 
 build: ${CMAKE_DIR}/Makefile
 	cd ${CMAKE_DIR} ; make
+
+install: build
+	cd ${CMAKE_DIR} ; make install
 
 clean:
 	rm *~

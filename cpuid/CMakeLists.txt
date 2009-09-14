@@ -3,4 +3,8 @@ project (cpuid)
 
 include($ENV{HOME}/Code/CMake/CMakeUserConfig.cmake)
 
+include(${CMAKE_INSTALL_PREFIX}/lib/jsoncpp/jsoncpp-targets.cmake)
+
 add_executable(cpuid src/cpuid.cpp)
+
+target_link_libraries(cpuid json)

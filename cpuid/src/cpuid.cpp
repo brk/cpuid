@@ -14,7 +14,9 @@
 #include <map>
 #include <sstream>
 
-#define CPUID_VERSION_STRING "2009-09-12"
+#include "json/json.h"
+
+#define CPUID_VERSION_STRING "2009-09-14"
 
 typedef unsigned int uint;
 
