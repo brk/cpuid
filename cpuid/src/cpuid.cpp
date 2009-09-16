@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE.txt file.
 
+#define CPUID_VERSION_STRING "2009-09-16"
+
 // Based on revision 036 (August 2009) of Intel's Application Note 485,
 // Intel (r) Processor Identification and the CPUID Instruction.
 // http://www.intel.com/Assets/PDF/appnote/241618.pdf
@@ -34,8 +36,6 @@ Value Value_from(const std::map<std::string, T>& amap) {
 }
 
 ///////////////////////////////////////////////////////////////
-
-#define CPUID_VERSION_STRING "2009-09-14"
 
 typedef unsigned int uint;
 
@@ -321,6 +321,7 @@ char brand_string[48] = { '\0' };
 
 #endif
 
+#ifndef __LP64__
 // http://linux.derkeiler.com/Newsgroups/comp.os.linux.development.system/2008-01/msg00174.html
 void cpuid_with_eax(uint in_eax) {
   __asm__(
@@ -343,6 +344,29 @@ void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
           : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
           );
 }
+#else // use 64 bit gas syntax
+void cpuid_with_eax(uint in_eax) {
+  __asm__(
+      "pushq %%rbx\n\t"       // save %ebx for PIC code on OS X
+      "cpuid\n\t"
+      "movq %%rbx, %%rsi\n\t" // save what cpuid put in ebx
+      "popq %%rbx\n\t"       // restore ebx
+          : "=a"(eax), "=S"(ebx), "=d"(edx), "=c"(ecx) // output
+          : "a"(in_eax) // input in_eax to %eax
+          );
+}
+
+void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
+  __asm__(
+      "pushq %%rbx\n\t"       // save %ebx for PIC code on OS X
+      "cpuid\n\t"
+      "movq %%rbx, %%rsi\n\t" // save what cpuid put in ebx
+      "popq %%rbx\n\t"       // restore ebx
+          : "=a"(eax), "=S"(ebx), "=d"(edx), "=c"(ecx) // output
+          : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
+          );
+}
+#endif
 
 void intel_fill_processor_features() {
   cpuid_with_eax(1);
