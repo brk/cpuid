@@ -321,17 +321,25 @@ char brand_string[48] = { '\0' };
 
 #endif
 
-
+// http://linux.derkeiler.com/Newsgroups/comp.os.linux.development.system/2008-01/msg00174.html
 void cpuid_with_eax(uint in_eax) {
-  __asm__("cpuid"
-          : "=a"(eax), "=b"(ebx), "=d"(edx), "=c"(ecx) // output
+  __asm__(
+      "pushl %%ebx\n\t"       // save %ebx for PIC code on OS X
+      "cpuid\n\t"
+      "movl %%ebx, %%esi\n\t" // save what cpuid put in ebx
+      "popl %%ebx\n\t"       // restore ebx
+          : "=a"(eax), "=S"(ebx), "=d"(edx), "=c"(ecx) // output
           : "a"(in_eax) // input in_eax to %eax
           );
 }
 
 void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
-  __asm__("cpuid"
-          : "=a"(eax), "=b"(ebx), "=d"(edx), "=c"(ecx) // output
+  __asm__(
+      "pushl %%ebx\n\t"       // save %ebx for PIC code on OS X
+      "cpuid\n\t"
+      "movl %%ebx, %%esi\n\t" // save what cpuid put in ebx
+      "popl %%ebx\n\t"       // restore ebx
+          : "=a"(eax), "=S"(ebx), "=d"(edx), "=c"(ecx) // output
           : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
           );
 }
