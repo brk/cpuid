@@ -67,6 +67,11 @@ def get_all_results():
 		]
 	}
 
+def get_venchup_contents(machine_name, privkey):
+  return template.render(
+      file_path('venchup.py'),
+      { 'private_key' : privkey, 'machine_name': machine_name })
+
 class MainPage(webapp.RequestHandler):
   
   def get(self):
@@ -77,17 +82,16 @@ class MainPage(webapp.RequestHandler):
 	  }
   	self.response.out.write(template.render(path, template_values))
 
-def get_venchup_contents(machine_name, privkey):
-  return template.render(
-      file_path('venchup.py'),
-      { 'private_key' : privkey, 'machine_name': machine_name })
-
 class VenchupPyDownload(webapp.RequestHandler):
   def get(self):
+    machine = self.request.get('machine')
+    privkey = self.request.get('privkey')
+    if not machine or not privkey:
+      self.response.out.write("Error: must provide machine name and private key!")
+      return
+      
     self.response.headers["Content-Type"] = 'text/plain'
-    self.response.out.write(get_venchup_contents(
-        self.request.get('machine'),
-        self.request.get('privkey')))
+    self.response.out.write(get_venchup_contents(machine, privkey))
 
 class RegisterMachinePage(webapp.RequestHandler):
   def post(self):
@@ -96,7 +100,8 @@ class RegisterMachinePage(webapp.RequestHandler):
     # allow v8-whatever
     machine_name_pattern = r'[a-zA-Z][a-zA-Z0-9-]{1,}(?:-[a-zA-Z0-9-]{3,})*'
     if not re.match(machine_name_pattern, machine):
-      self.error("Invalid machine name!")
+      self.response.out.write("Invalid machine name!")
+      return
     
     from Crypto.PublicKey import RSA
     from Crypto.Util import randpool
