@@ -37,7 +37,8 @@ Value Value_from(const std::map<std::string, T>& amap) {
 
 ///////////////////////////////////////////////////////////////
 
-typedef unsigned int uint;
+typedef unsigned int       uint;
+typedef unsigned long long uint64;
 
 // low bit is bit 0, high bit on IA-32 is bit 31
 #define BIT(n) (1U << (n))
@@ -54,6 +55,8 @@ typedef unsigned int uint;
 #define BIT_IS_SET(v, bit) ((v & BIT(bit)) != 0)
 
 #define ARRAY_SIZE(a) (sizeof((a))/sizeof((a)[0]))
+
+#define D(expr) (#expr) << " = " << (expr)
 
 std::string quote(std::string in) {
   std::stringstream ss;
@@ -323,8 +326,8 @@ char brand_string[48] = { '\0' };
 
 #ifndef __LP64__
 // http://linux.derkeiler.com/Newsgroups/comp.os.linux.development.system/2008-01/msg00174.html
-void cpuid_with_eax(uint in_eax) {
-  __asm__(
+inline void cpuid_with_eax(uint in_eax) {
+  __asm__ __volatile__(
       "pushl %%ebx\n\t"       // save %ebx for PIC code on OS X
       "cpuid\n\t"
       "movl %%ebx, %%esi\n\t" // save what cpuid put in ebx
@@ -334,8 +337,8 @@ void cpuid_with_eax(uint in_eax) {
           );
 }
 
-void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
-  __asm__(
+inline void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
+  __asm__ __volatile__(
       "pushl %%ebx\n\t"       // save %ebx for PIC code on OS X
       "cpuid\n\t"
       "movl %%ebx, %%esi\n\t" // save what cpuid put in ebx
@@ -344,9 +347,19 @@ void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
           : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
           );
 }
+
+void rdtsc_serialized(uint64& ticks) {
+  cpuid_with_eax(0);
+  __asm__ __volatile__("rdtsc": "=A" (ticks));
+}
+
+void rdtsc_unserialized(uint64& ticks) {
+  __asm__ __volatile__("rdtsc": "=A" (ticks));
+}
+
 #else // use 64 bit gas syntax
-void cpuid_with_eax(uint in_eax) {
-  __asm__(
+inline void cpuid_with_eax(uint in_eax) {
+  __asm__ __volatile__(
       "pushq %%rbx\n\t"       // save %ebx for PIC code on OS X
       "cpuid\n\t"
       "movq %%rbx, %%rsi\n\t" // save what cpuid put in ebx
@@ -356,8 +369,8 @@ void cpuid_with_eax(uint in_eax) {
           );
 }
 
-void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
-  __asm__(
+inline void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
+  __asm__ __volatile__(
       "pushq %%rbx\n\t"       // save %ebx for PIC code on OS X
       "cpuid\n\t"
       "movq %%rbx, %%rsi\n\t" // save what cpuid put in ebx
@@ -607,6 +620,23 @@ Value& operator<<(Value& root, const tag_processor_features& feats) {
   return root;
 }
 
+uint rdtsc_serialized_cycles;
+uint rdtsc_unserialized_cycles;
+
+void play_with_rdtsc(Value& root) {
+  uint64 a, b, c, d;
+  rdtsc_serialized(a);
+  rdtsc_serialized(b);
+  rdtsc_serialized_cycles = uint(b - a);
+
+  rdtsc_unserialized(a);
+  rdtsc_unserialized(b);
+  rdtsc_unserialized_cycles = uint(b - a);
+ 
+  root["rdtsc_serialized_overhead_cycles"] = rdtsc_serialized_cycles;
+  root["rdtsc_unserialized_overhead_cycles"] = rdtsc_unserialized_cycles;
+}
+
 ///////////////////////////////////////////////////////
 
 int main() {
@@ -640,8 +670,12 @@ int main() {
   root["features"] = Value_from(features);
   root << processor_features;
 
+  if (features["tsc"]) {
+    play_with_rdtsc(root);
+  }
+  
   std::cout << root.toStyledString() << std::endl;
-
+  
 	return 0;
 }
 
