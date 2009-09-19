@@ -6,7 +6,7 @@ _obj/jsoncpp.o:
 _obj/cpuid.S:
 	g++ -O2 -g src/cpuid.cpp -S -o _obj/cpuid.S
 
-_obj/cpuid: _obj/jsoncpp.o
+_obj/cpuid: _obj/jsoncpp.o src/cpuid.cpp
 	g++ -O2 -g src/cpuid.cpp _obj/jsoncpp.o -o _obj/cpuid
 
 _obj:

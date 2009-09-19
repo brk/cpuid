@@ -18,12 +18,19 @@
 
 #include "json/json.h"
 
+typedef unsigned int       uint;
+typedef unsigned long long uint64;
+typedef          long long  int64;
+
 using Json::Value;
 
 Value Value_from(bool b) { return Value(b); }
 Value Value_from(int b) { return Value(b); }
 Value Value_from(double b) { return Value(b); }
 Value Value_from(const std::string& b) { return Value(b); }
+Value Value_from(uint b) { return Value(b); }
+Value Value_from(uint64 b) { return Value(double(b)); }
+Value Value_from(int64 b) { return Value(double(b)); }
 
 template <typename T>
 Value Value_from(const std::map<std::string, T>& amap) {
@@ -36,9 +43,6 @@ Value Value_from(const std::map<std::string, T>& amap) {
 }
 
 ///////////////////////////////////////////////////////////////
-
-typedef unsigned int       uint;
-typedef unsigned long long uint64;
 
 // low bit is bit 0, high bit on IA-32 is bit 31
 #define BIT(n) (1U << (n))
@@ -55,6 +59,8 @@ typedef unsigned long long uint64;
 #define BIT_IS_SET(v, bit) ((v & BIT(bit)) != 0)
 
 #define ARRAY_SIZE(a) (sizeof((a))/sizeof((a)[0]))
+
+#define MERGE_HI_LO(a, b) ((((uint64)a) << 32) | ((uint64)b))
 
 #define D(expr) (#expr) << " = " << (expr)
 
@@ -348,13 +354,10 @@ inline void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
           );
 }
 
-void rdtsc_serialized(uint64& ticks) {
-  cpuid_with_eax(0);
+uint64 rdtsc_unserialized() {
+  uint64 ticks;
   __asm__ __volatile__("rdtsc": "=A" (ticks));
-}
-
-void rdtsc_unserialized(uint64& ticks) {
-  __asm__ __volatile__("rdtsc": "=A" (ticks));
+  return ticks;
 }
 
 #else // use 64 bit gas syntax
@@ -379,7 +382,20 @@ inline void cpuid_with_eax_and_ecx(uint in_eax, uint in_ecx) {
           : "a"(in_eax), "c"(in_ecx) // input in_eax to %eax and in_ecx to %ecx
           );
 }
+
+uint64 rdtsc_unserialized() {
+  uint a, d;
+  __asm__ __volatile__("rdtsc": "=a"(a), "=d"(d));
+  return MERGE_HI_LO(d, a);
+}
 #endif
+
+uint64 rdtsc_serialized() {
+  cpuid_with_eax(0);
+  uint64 ticks;
+  __asm__ __volatile__("rdtsc": "=A" (ticks));
+  return ticks;
+}
 
 void intel_fill_processor_features() {
   cpuid_with_eax(1);
@@ -620,21 +636,25 @@ Value& operator<<(Value& root, const tag_processor_features& feats) {
   return root;
 }
 
-uint rdtsc_serialized_cycles;
-uint rdtsc_unserialized_cycles;
+double rdtsc_serialized_cycles;
+double rdtsc_unserialized_cycles;
 
 void play_with_rdtsc(Value& root) {
-  uint64 a, b, c, d;
-  rdtsc_serialized(a);
-  rdtsc_serialized(b);
-  rdtsc_serialized_cycles = uint(b - a);
+  uint64 a, b;
+  a = rdtsc_serialized();
+  b = rdtsc_serialized();
+  rdtsc_serialized_cycles = double(b - a);
 
-  rdtsc_unserialized(a);
-  rdtsc_unserialized(b);
-  rdtsc_unserialized_cycles = uint(b - a);
- 
-  root["rdtsc_serialized_overhead_cycles"] = rdtsc_serialized_cycles;
-  root["rdtsc_unserialized_overhead_cycles"] = rdtsc_unserialized_cycles;
+  a = rdtsc_unserialized();
+  b = rdtsc_unserialized();
+  std::cout << "a: " << a << std::endl;
+  std::cout << "b: " << b << std::endl;
+  std::cout << "b-a: " << (b-a) << std::endl;
+  rdtsc_unserialized_cycles = double(b - a);
+
+
+  root["rdtsc_serialized_overhead_cycles"] = Value_from(rdtsc_serialized_cycles);
+  root["rdtsc_unserialized_overhead_cycles"] = Value_from(rdtsc_unserialized_cycles);
 }
 
 ///////////////////////////////////////////////////////
