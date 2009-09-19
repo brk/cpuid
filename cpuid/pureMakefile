@@ -1,0 +1,14 @@
+default: _obj/cpuid
+
+_obj/jsoncpp.o:
+	g++ -O2 -g src/jsoncpp-fused.cpp -c -o _obj/jsoncpp.o
+
+_obj/cpuid.S:
+	g++ -O2 -g src/cpuid.cpp -S -o _obj/cpuid.S
+
+_obj/cpuid: _obj/jsoncpp.o
+	g++ -O2 -g src/cpuid.cpp _obj/jsoncpp.o -o _obj/cpuid
+
+_obj:
+	mkdir _obj
+
