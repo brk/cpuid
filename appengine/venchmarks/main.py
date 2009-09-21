@@ -69,6 +69,10 @@ def get_all_results():
 		]
 	}
 
+class User(db.Model):
+  user       = db.UserProperty(required=True)
+  user_id    = db.StringProperty(required=True)
+
 class Compiler(db.Model):
   name       = db.StringProperty(required=True)
   srcdate    = db.DateTimeProperty(required=False)
@@ -218,11 +222,32 @@ class RegisterMachinePage(webapp.RequestHandler):
 </html>
       """ % self.request.url)
 
+class UsersViewPage(webapp.RequestHandler):
+  def get(self, user_str):
+    if user_str == 'me':
+      user = users.get_current_user()
+    else:
+      user = None
+      
+    if not User:
+      self.response.out.write("You must be logged in to view your user page!")
+    else:
+      my_machines = db.GqlQuery("SELECT * FROM Machine WHERE owner = :1", user)
+      path = file_path('user.html')
+      template_values = {
+        'user': user,
+        'login_url': users.create_login_url(self.request.url),
+        'logout_url': users.create_logout_url(self.request.url),
+        'machines': my_machines
+      }
+      self.response.out.write(template.render(path, template_values))
+      
 def main():
   application = webapp.WSGIApplication([
                       ('/', MainPage),
                       ('/register-machine', RegisterMachinePage),
-                      ('/venchup.py', VenchupPyDownload)
+                      ('/venchup.py', VenchupPyDownload),
+                      ('/users/view/(.*)', UsersViewPage)
                   ],
                                        debug=True)
   wsgiref.handlers.CGIHandler().run(application)
