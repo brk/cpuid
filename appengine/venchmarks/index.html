@@ -17,6 +17,14 @@
 	<body>
 	<div id="nav-links">
 <a href="/register-machine">Register Machine</a>
+
+{% if user %}
+  <span id="logged-in-as">Logged in as <a href="/users/view/{{ user.user_id }}">{{ user }}</a></span>
+  <a href="{{ logout_url }}">Log Out</a>
+{% else %}
+  <a href="{{ login_url }}">Log In</a>
+{% endif %}
+
   </div>
 <table style="border: 1px solid black;" width="100%">
 	<tr>
