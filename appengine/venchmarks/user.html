@@ -28,12 +28,19 @@
   </div>
 
   <table border="1">
-    <tr><th>Name</th><th>Private Key</th><th>Description</th></tr>
+    <tr><th>Name</th><th>Description</th><th>Actions</th></tr>
 {% for machine in machines %}  
     <tr class="monospace">
       <td>{{ machine.name }}</td>
-      <td>{{ machine.privkey }}</td>
       <td>{{ machine.description }}</td>
+      <td>
+        <ul>
+          <li>[_download venchup.py_]</li>
+          <li>[_edit description_]</li>
+          <li>[__]</li>
+          <li>[_delete all data_]</li>
+        </ul>
+      </td>
     </tr>
 {% endfor %}
   </table>
