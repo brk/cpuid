@@ -6,3 +6,13 @@
 tr.monospace *,
 .monospace { font-family: monospace; }
 
+#dependent-axis-label {
+  float: left;
+  margin-top: 300px;
+  font-size: 200%;
+}
+
+#independent-axis-label {
+  font-size: 200%;
+  font-weight: bold;
+}

@@ -10,8 +10,28 @@
     </style>
     <script type="text/javascript"
       src="http://ajax.googleapis.com/ajax/libs/jquery/1.3/jquery.min.js"></script>
+    <script type="text/javascript" src="http://eschew.org/static/js/flot-latest/jquery.flot.js"></script>
+    <!--[if IE]><script language="javascript" type="text/javascript" src="http://eschew.org/static/js/flot-latest/excanvas.pack.js"></script><![endif]--> 
+
     <script type="text/javascript">
       var db = {{ db }};
+      
+      function fractionalDate(year,month,day) {
+        if(typeof(month) == 'undefined') {
+          var s = year.toString();
+          var bits = s.match(/(\d{4})(\d\d)(\d\d)/);
+          year  = parseInt(bits[1]);
+          month = parseInt(bits[2]);
+          day   = parseInt(bits[3]);
+        }
+        var ms_passed = new Date(1970, month, day) - new Date(1970, 1, 1);
+        var days_passed = ms_passed/1000/60/60/24;
+        var t = days_passed/365;
+        return year + t;
+      }
+      var fd = fractionalDate;
+      
+      
     </script>
   </head>
 	<body>
@@ -68,10 +88,89 @@
 	</tr>
 	<tr>	
 		<td width="80%">
-			<div style="background-color: green;" id="graph"></div>
+		<center>
+		  <span id="dependent-axis-label">bogomips</span>
+			<div style="background-color: #ccc; width:800px; height:600px;" id="graph"></div>
+			<span id="independent-axis-label">n</span>
+		</center>
 		</td>
 	</tr>
 </table>
+<div id="log"></div>
+<script type="text/javascript">
+  function zoomed_results_label(result) {
+    return result.benchmark_name + '.' + result.date;
+  }
+  
+  function identity(a) { return a; }
+  
+  function min_of(a, f) {
+    if (!f) return min_of(a, identity);
+    
+    var m = parseFloat(f(a[0]));
+    for (var v in a) { m = Math.min(m, parseFloat(f(a[v]))); }
+    return m;
+  }
+  
+  function max_of(a, f) {
+    if (!f) return max_of(a, identity);
+    
+    var m = parseFloat(f(a[0]));
+    for (var v in a) { m = Math.max(m, parseFloat(f(a[v]))); }
+    return m;
+  }
+ 
+  function log(str) {
+    $('#log').append(str);
+    $('#log').append('<br>');
+  }
+  
+  function zip(a, b) {
+    var m = Math.min(a.length, b.length);
+    var rv = new Array(m);
+    for (var i = 0; i < m; ++i) {
+      rv[i] = [a[i], b[i]];
+    }
+    return rv;
+  }
+  
+  function result_to_flot_data(result) {
+    var result_keys = JSON.parse(result.in_keys);
+    var result_values = JSON.parse(result.out_values);
+    return {
+      label: zoomed_results_label(result),
+      data: zip(result_keys, result_values),
+      max_key: max_of(result_keys),
+      max_value: max_of(result_values),
+    };
+  }
+  
+  $(function () {
+    var result = db.results[0];
+    var all_results = new Array(db.results.length);
+    for (var i = 0; i < db.results.length; ++i) {
+      all_results[i] = result_to_flot_data(db.results[i]);
+    }
+    
+    var max_key = max_of(all_results, function(v) { return v.max_key; });
+    var max_value = max_of(all_results, function(v) { return v.max_value; });
+    
+    $.plot($("#graph"), all_results, {
+      lines: { show: true },
+      points: { show: true },
+      xaxis: { min: 0, max: max_key, tickDecimals: 0 },
+      yaxis: { min: 0, max: max_value },
+      grid: { backgroundColor: "#fffaff" },
+      legend: {position: "nw" }
+    });
+    
+    $("#independent-axis-label").text(db.results[0].in_name);
+    $("#dependent-axis-label").text(db.results[0].out_name);
+    
+    log('done');
+  });
+  
+</script>
 	</body>
 </html>
 

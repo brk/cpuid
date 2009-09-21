@@ -23,7 +23,7 @@ def get_all_results():
 		'compilers': [
 			{
 				'name': 'bitcc',
-				'languages': 'bitc',
+				'languages': ['bitc'],
 				'srcdate': '2009-06-01',
 				'version': '0.10',
 				'repository': ''
@@ -31,7 +31,7 @@ def get_all_results():
 			
 			{
 				'name': 'foster',
-				'languages': 'foster',
+				'languages': ['foster'],
 				'srcdate': '2009-06-10',
 				'version': '20060610',
 				'repository': ''
@@ -46,35 +46,28 @@ def get_all_results():
 		'benchmarks': [
 			{
 				'name': 'nbody',
-				'language': 'bitc',
-				'src': '?',
-				'repository': ''
+				'language': 'bitc'
 			}
 		],
 		'results': [
 			{
 				'date':'2009-08-01',
-				'in-name': 'n',
-				'out-name': 'walltimes',
-				'compile-time': 0.1,
-				'in-array': '[ 32, 64, 128 ]',
-				'out-array': '[ 12.3, 242.6, 920.13 ]',
-				'compile-command': '',
-				'run-command': '',
-				'machine-id': '?',
-				'benchmark-id': '?',
+				'in_name': 'n',
+				'out_name': 'walltimes',
+				'compile_ms': 0.1,
+				'in_keys': '[ 32, 64, 128 ]',
+				'out_values': '[ 12.3, 242.6, 920.13 ]',
+				'machine_name': 'godwin',
+				'benchmark_name': 'bitc.benchmark.nbody',
 				'fixed-parameters': '-O2',
-				'arith-mean': '143.8'
+				'geom_mean': '143.8'
 			}
 		]
 	}
 
-class User(db.Model):
-  user       = db.UserProperty(required=True)
-  user_id    = db.StringProperty(required=True)
-
 class Compiler(db.Model):
   name       = db.StringProperty(required=True)
+  languages  = db.StringListProperty(required=True)
   srcdate    = db.DateTimeProperty(required=False)
   version    = db.StringProperty(required=True)
   repository = db.LinkProperty(required=False)
