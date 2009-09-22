@@ -16,3 +16,7 @@ tr.monospace *,
   font-size: 200%;
   font-weight: bold;
 }
+
+#mishmash-row h3 {
+  margin: 0;
+}

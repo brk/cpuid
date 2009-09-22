@@ -51,34 +51,34 @@
 		<td>
 			<center>
 	<table border="2px">
-		<tr>
-			<td id="machines-cell">
-				Machines<br>
-				<div id="machines-list"></div>
+		<tr id="mishmash-row">
+			<td id="machines-td">
+				<h3>Machines</h3>
+				<div id="machines-cell"></div>
 			</td>
 			
-			<td id="languages-cell">
-				Languages<br>
-				<div id="languages-list"></div>
+			<td id="languages-td">
+				<h3>Languages</h3>
+				<div id="languages-cell"></div>
 			</td>
 			
-			<td id="compilers-cell">
-				Compilers<br>
-				<div id="compilers-list"></div>
+			<td id="compilers-td">
+				<h3>Compilers</h3>
+				<div id="compilers-cell"></div>
 			</td>
 			
-			<td id="benchmarks-cell">
-				Benchmarks<br>
-				<div id="benchmarks-list"></div>
+			<td id="benchmarks-td">
+				<h3>Benchmarks</h3>
+				<div id="benchmarks-cell"></div>
 			</td>
 			
-			<td id="input-cell">
-				Independent Variable<br>
-				<div id="input-list"></div>
+			<td id="input-td">
+				<h3>Independent Variable</h3>
+				<div id="input-cell"></div>
 			</td>
-			<td id="output-cell">
-				Dependent Variable<br>
-				<div id="output-list"></div>
+			<td id="output-td">
+				<h3>Dependent Variable</h3>
+				<div id="output-cell"></div>
 			</td>
 		</tr>
 	</table>
@@ -145,6 +145,27 @@
     };
   }
   
+  function strip_to_alpha_dash(str) {
+    // TODO
+  }
+  
+  function glob_to_regex(str) {
+    // replace un-escaped metachars with escaped versions
+    return str.replace(/([^\\])([\.()|+^$@%])/g, "$1\\$2")
+    // replace glob star with (non-greedy) kleene star over all characters
+              .replace("*", ".*?");
+  }
+  
+  function globby_regexp(str) {
+    if (!str) return new RegExp();
+    if (str[0] == "~") {
+      var newstr = str.slice(1);
+      log(newstr);
+      return new RegExp(newstr); // remove first char and use directly
+    }
+    return new RegExp(glob_to_regex(str));
+  }
+  
   $(function () {
     var result = db.results[0];
     var all_results = new Array(db.results.length);
@@ -161,13 +182,41 @@
       xaxis: { min: 0, max: max_key, tickDecimals: 0 },
       yaxis: { min: 0, max: max_value },
       grid: { backgroundColor: "#fffaff" },
-      legend: {position: "nw" }
+      legend: { position: "nw" }
     });
     
     $("#independent-axis-label").text(db.results[0].in_name);
     $("#dependent-axis-label").text(db.results[0].out_name);
     
     log('done');
+  });
+  
+  function filter_header(e) {
+    var filter_re = globby_regexp(e.target.value);
+    var header = e.data;
+    var sel = $("#"+header+"-select");
+    sel.empty();
+    for (var i in db[header]) {
+      var m = db[header][i];
+      if (filter_re.test(m.name)) {
+        sel.append(
+          '<option value="'+m.name+'">'+m.name+'</option>'
+          );
+      }
+    }
+  }
+  
+  $(function() {
+      var headers = ['machines', 'compilers', 'benchmarks'];
+      for (var i = 0, hd_name; hd_name = headers[i]; ++i) {
+          var header = $("#?-cell".replace('?', hd_name));
+          header.html(
+            'Filter: <input id="?-filter"type=text size=10 value="*"><br>'+
+            'Active: <select id="?-select"></select>'.replace('?', hd_name));
+          header.bind("change", hd_name, filter_header);
+          // call once to construct initial list
+          filter_header({data: hd_name, target: {value: '*'}});
+      }
   });
   
 </script>
