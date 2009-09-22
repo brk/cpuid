@@ -223,6 +223,25 @@ struct tag_processor_cache_parameter_set {
   int size_in_bytes;
 };
 
+int cache_type_tag(char c) {
+  switch (c) {
+    case 'd': return 1; // data
+    case 'i': return 2; // instruction
+    case 'u': return 3; // unified
+  }
+  return 0; // default
+}
+
+const char* cache_type_str(int type) {
+  switch (type) {
+    case 0: return "-";
+    case 1: return "d"; // data
+    case 2: return "i"; // instruction
+    case 3: return ""; // unified
+  }
+  return "?";
+}
+
 std::vector<tag_processor_cache_parameter_set> processor_cache_parameters;
 
 char brand_string[48] = { '\0' };
@@ -451,6 +470,44 @@ void amd_fill_processor_features() {
   }
 }
 
+tag_processor_cache_parameter_set amd_cache_parameters(int reg) {
+    tag_processor_cache_parameter_set cache = { 0 };
+    // TODO: this seems to be per-core not total
+    cache.size_in_bytes              = 1024 * MASK_RANGE_IN(reg, 31, 24);
+    cache.system_coherency_line_size = MASK_RANGE_IN(reg, 7, 0);
+    return cache;
+}
+
+void amd_fill_processor_caches(uint max_eax) {
+  if (  max_eax >= 0x80000005) {
+    cpuid_with_eax(0x80000005);
+    tag_processor_cache_parameter_set L1i = amd_cache_parameters(edx);
+    L1i.cache_level = 1;
+    L1i.cache_type = cache_type_tag('i');
+    processor_cache_parameters.push_back(L1i);
+
+    tag_processor_cache_parameter_set L1d = amd_cache_parameters(ecx);
+    L1d.cache_level = 1;
+    L1d.cache_type = cache_type_tag('d');
+    processor_cache_parameters.push_back(L1d);
+  }
+
+  if (  max_eax >= 0x80000006) {
+    cpuid_with_eax(0x80000006);
+    tag_processor_cache_parameter_set L2 = amd_cache_parameters(ecx);
+    L2.size_in_bytes = MASK_RANGE_IN(ecx, 31, 16);
+    L2.cache_level = 2;
+    L2.cache_type = cache_type_tag('u');
+    processor_cache_parameters.push_back(L2);
+
+    tag_processor_cache_parameter_set L3 = amd_cache_parameters(edx);
+    L3.size_in_bytes = MASK_RANGE_IN(ecx, 31, 18);
+    L3.cache_level = 3;
+    L3.cache_type = cache_type_tag('u');
+    processor_cache_parameters.push_back(L3);
+  }
+}
+
 void intel_set_cache_properties(tag_processor_cache_descriptor& cache,
       int size, int ways, int entries_or_linesize, bool sectored = false) {
   cache.size = size;
@@ -563,7 +620,7 @@ bool intel_was_cpuid_input_acceptable(uint eax) {
   return (eax & BIT(31)) == 0;
 }
 
-void intel_fill_brand_string_helper(int offset) {
+void fill_brand_string_helper(int offset) {
   ((uint*)brand_string)[offset + 0] = eax;
   ((uint*)brand_string)[offset + 1] = ebx;
   ((uint*)brand_string)[offset + 2] = ecx;
@@ -572,11 +629,11 @@ void intel_fill_brand_string_helper(int offset) {
 
 void cpuid_fill_brand_string() {
   cpuid_with_eax(0x80000002);
-  intel_fill_brand_string_helper(0);
+  fill_brand_string_helper(0);
   cpuid_with_eax(0x80000003);
-  intel_fill_brand_string_helper(4);
+  fill_brand_string_helper(4);
   cpuid_with_eax(0x80000004);
-  intel_fill_brand_string_helper(8);
+  fill_brand_string_helper(8);
 }
 
 void intel_detect_processor_topology() {
@@ -601,16 +658,6 @@ void intel_detect_processor_topology() {
 
 ///////////////////// PRINTING FUNCTIONS ///////////////////
 
-const char* cache_type_tag(int type) {
-    switch (type) {
-    case 0: return "-";
-    case 1: return "d"; // data
-    case 2: return "i"; // instruction
-    case 3: return ""; // unified
-  }
-  return "?";
-}
-
 Value Value_from(const tag_processor_cache_parameter_set& params) {
   Value root;
   root["reserved_apics"]  = Value(params.reserved_APICS);
@@ -625,7 +672,7 @@ Value Value_from(const tag_processor_cache_parameter_set& params) {
 Value& operator<<(Value& root,
                   const tag_processor_cache_parameter_set& params) {
   std::stringstream name;
-  name << "L" << params.cache_level << cache_type_tag(params.cache_type);
+  name << "L" << params.cache_level << cache_type_str(params.cache_type);
   root[name.str()] = Value_from(params);
 }
 
@@ -647,11 +694,7 @@ void play_with_rdtsc(Value& root) {
 
   a = rdtsc_unserialized();
   b = rdtsc_unserialized();
-  std::cout << "a: " << a << std::endl;
-  std::cout << "b: " << b << std::endl;
-  std::cout << "b-a: " << (b-a) << std::endl;
   rdtsc_unserialized_cycles = double(b - a);
-
 
   root["rdtsc_serialized_overhead_cycles"] = Value_from(rdtsc_serialized_cycles);
   root["rdtsc_unserialized_overhead_cycles"] = Value_from(rdtsc_unserialized_cycles);
@@ -661,9 +704,10 @@ void play_with_rdtsc(Value& root) {
 
 int main() {
   vendor_id[12] = '\0';
-  uint max_basic_eax = cpuid_vendor_id_and_max_basic_eax_input();
-  //std::cout << "max basic %eax cpuid input is " << max_basic_eax << std::endl;
-
+  int max_basic_eax = cpuid_vendor_id_and_max_basic_eax_input();
+  std::cout << "max basic %eax cpuid input is " << max_basic_eax << std::endl;
+  uint max_ext_eax = cpuid_max_acceptable_extended_eax_input();
+  printf("max eax %%eax input is 0x%x\n", max_ext_eax);
   cpuid_fill_brand_string();
 
   init_all_features_to_false();
@@ -674,6 +718,12 @@ int main() {
     //intel_detect_processor_topology();
   } else if (std::string("AuthenticAMD") == vendor_id) {
     amd_fill_processor_features();
+    amd_fill_processor_caches(max_ext_eax);
+    if (max_ext_eax >= 0x80000008) {
+      cpuid_with_eax(0x80000008);
+      std::cout << "max linear address size: " << MASK_RANGE_IN(eax, 15, 8) << std::endl;
+      std::cout << "max physcl address size: " << MASK_RANGE_IN(eax, 7, 0) << std::endl;
+    }
   } else {
     std::cerr << "Unknown vendor id!" << std::endl;
     return 1;
