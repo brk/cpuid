@@ -470,40 +470,61 @@ void amd_fill_processor_features() {
   }
 }
 
-tag_processor_cache_parameter_set amd_cache_parameters(int reg) {
+tag_processor_cache_parameter_set amd_L1_cache_parameters(int reg) {
     tag_processor_cache_parameter_set cache = { 0 };
-    // TODO: this seems to be per-core not total
     cache.size_in_bytes              = 1024 * MASK_RANGE_IN(reg, 31, 24);
     cache.system_coherency_line_size = MASK_RANGE_IN(reg, 7, 0);
+    cache.sets                       = MASK_RANGE_IN(reg, 23, 16);
+    cache.ways                       = MASK_RANGE_IN(reg, 15, 8);
+    cache.cache_level                = 1;
     return cache;
 }
+
+int amd_l2_l3_cache_assoc(int bits) {
+  switch (bits) {
+    case 0x6: return 8;
+    case 0x8: return 16;
+    case 0xA: return 32;
+    case 0xB: return 48;
+    case 0xC: return 64;
+    case 0xD: return 96;
+    case 0xE: return 128;
+  }
+  return bits;
+}
+
+tag_processor_cache_parameter_set amd_L2_cache_parameters(int reg) {
+    tag_processor_cache_parameter_set cache = { 0 };
+    cache.system_coherency_line_size = MASK_RANGE_IN(reg, 7, 0);
+    cache.sets = amd_l2_l3_cache_assoc(MASK_RANGE_IN(reg, 15, 12));
+    cache.ways                       = MASK_RANGE_IN(reg, 11, 8);
+    cache.cache_type = cache_type_tag('u');
+    return cache;
+}
+
 
 void amd_fill_processor_caches(uint max_eax) {
   if (  max_eax >= 0x80000005) {
     cpuid_with_eax(0x80000005);
-    tag_processor_cache_parameter_set L1i = amd_cache_parameters(edx);
-    L1i.cache_level = 1;
+    tag_processor_cache_parameter_set L1i = amd_L1_cache_parameters(edx);
     L1i.cache_type = cache_type_tag('i');
     processor_cache_parameters.push_back(L1i);
 
-    tag_processor_cache_parameter_set L1d = amd_cache_parameters(ecx);
-    L1d.cache_level = 1;
+    tag_processor_cache_parameter_set L1d = amd_L1_cache_parameters(ecx);
     L1d.cache_type = cache_type_tag('d');
     processor_cache_parameters.push_back(L1d);
   }
 
   if (  max_eax >= 0x80000006) {
     cpuid_with_eax(0x80000006);
-    tag_processor_cache_parameter_set L2 = amd_cache_parameters(ecx);
-    L2.size_in_bytes = MASK_RANGE_IN(ecx, 31, 16);
+    tag_processor_cache_parameter_set L2 = amd_L2_cache_parameters(ecx);
+    L2.size_in_bytes = 1024 * MASK_RANGE_IN(ecx, 31, 16);
     L2.cache_level = 2;
-    L2.cache_type = cache_type_tag('u');
     processor_cache_parameters.push_back(L2);
 
-    tag_processor_cache_parameter_set L3 = amd_cache_parameters(edx);
-    L3.size_in_bytes = MASK_RANGE_IN(ecx, 31, 18);
+    tag_processor_cache_parameter_set L3 = amd_L2_cache_parameters(edx);
+    L3.size_in_bytes = 512 * 1024 * MASK_RANGE_IN(edx, 31, 18);
     L3.cache_level = 3;
-    L3.cache_type = cache_type_tag('u');
     processor_cache_parameters.push_back(L3);
   }
 }
