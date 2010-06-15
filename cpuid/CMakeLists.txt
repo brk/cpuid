@@ -1,12 +1,9 @@
 cmake_minimum_required (VERSION 2.6)
+
 project (cpuid)
 
-set(CMAKE_BUILD_TYPE Release)
+add_library(cpuid STATIC src/cpuid.cpp)
 
-include($ENV{HOME}/Code/CMake/CMakeUserConfig.cmake OPTIONAL)
+add_executable(testcpuid src/cpuid_main.cpp src/jsoncpp-fused.cpp)
 
-include(${CMAKE_INSTALL_PREFIX}/lib/jsoncpp/jsoncpp-targets.cmake)
-
-add_executable(cpuid src/cpuid.cpp)
-
-target_link_libraries(cpuid json)
+target_link_libraries(testcpuid cpuid)
