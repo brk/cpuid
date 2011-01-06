@@ -61,6 +61,18 @@ def get_all_results():
 				'benchmark_name': 'bitc.benchmark.nbody',
 				'fixed-parameters': '-O2',
 				'geom_mean': '143.8'
+			},
+      {
+				'date':'2009-08-02',
+				'in_name': 'nprocs',
+				'out_name': 'walltime_ms',
+				'compile_ms': 0.2,
+				'in_keys': '[ 16, 32, 64 ]',
+				'out_values': '[ 123, 24.26, 9.20 ]',
+				'machine_name': 'godwin',
+				'benchmark_name': 'bitc.benchmark.nbody',
+				'fixed-parameters': '-O2',
+				'geom_mean': '43.8'
 			}
 		]
 	}
