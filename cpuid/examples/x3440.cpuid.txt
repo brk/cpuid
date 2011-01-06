@@ -1,0 +1,92 @@
+max basic %eax cpuid input is 11
+max ext %eax input is 0x80000008
+{
+   "caches" : {
+      "L1d" : {
+         "line_size" : 64,
+         "reserved_apics" : 8,
+         "sets" : 64,
+         "sharing_threads" : 2,
+         "total_size" : 32768,
+         "ways" : 8
+      },
+      "L1i" : {
+         "line_size" : 64,
+         "reserved_apics" : 8,
+         "sets" : 128,
+         "sharing_threads" : 2,
+         "total_size" : 32768,
+         "ways" : 4
+      },
+      "L2" : {
+         "line_size" : 64,
+         "reserved_apics" : 8,
+         "sets" : 512,
+         "sharing_threads" : 2,
+         "total_size" : 262144,
+         "ways" : 8
+      },
+      "L3" : {
+         "line_size" : 64,
+         "reserved_apics" : 8,
+         "sets" : 8192,
+         "sharing_threads" : 16,
+         "total_size" : 8388608,
+         "ways" : 16
+      }
+   },
+   "cpuid_version" : "2010-06-14",
+   "features" : {
+      "3dnow" : false,
+      "3dnowext" : false,
+      "3dnowprefetch" : false,
+      "abm" : false,
+      "aes" : false,
+      "clflush" : true,
+      "cmov" : true,
+      "cx16" : true,
+      "cx8" : true,
+      "ds" : true,
+      "ds_cpl" : true,
+      "dtes64" : true,
+      "htt" : true,
+      "ibs" : false,
+      "lahf" : true,
+      "misalignsse" : false,
+      "mmx" : true,
+      "mmxext" : false,
+      "monitor" : true,
+      "movbe" : false,
+      "msr" : true,
+      "pat" : true,
+      "pclmuldq" : false,
+      "pdcm" : true,
+      "popcnt" : true,
+      "pse" : true,
+      "pse36" : true,
+      "raz" : false,
+      "rdtscp" : false,
+      "smx" : true,
+      "ss" : true,
+      "sse" : true,
+      "sse2" : true,
+      "sse3" : true,
+      "sse41" : true,
+      "sse42" : true,
+      "sse4a" : false,
+      "ssse3" : true,
+      "svm" : false,
+      "tsc" : true,
+      "vmx" : true,
+      "x2apic" : false,
+      "x86_64" : true
+   },
+   "model_name" : "Intel(R) Xeon(R) CPU           X3440  @ 2.53GHz",
+   "monitor_line_size_max" : 64,
+   "monitor_line_size_min" : 64,
+   "rdtsc_serialized_overhead_cycles" : 130.0,
+   "rdtsc_unserialized_overhead_cycles" : 35.0,
+   "threads" : 16,
+   "vendor_id" : "GenuineIntel"
+}
+
