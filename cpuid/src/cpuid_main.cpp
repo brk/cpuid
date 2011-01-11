@@ -4,6 +4,15 @@
 
 #include "cpuid.h"
 
+template<int N, typename T>
+std::string format_bitstring(T x) {
+  std::string buf(N, '@');
+  for (int i = 0; i < N; ++i) {
+    buf[(N - 1) - i] = (x & (1<<i)) ? '1' : '0';
+  }
+  return "0b" + buf;
+}
+
 #include "json/json.h"
 
 using Json::Value;
@@ -28,12 +37,15 @@ Value Value_from(const std::map<std::string, T>& amap) {
 
 Value Value_from(const tag_processor_cache_parameter_set& params) {
   Value root;
-  root["reserved_apics"]  = Value(params.reserved_APICS);
-  root["sharing_threads"] = Value(params.sharing_threads);
-  root["ways"]            = Value(params.ways);
-  root["line_size"]       = Value(params.system_coherency_line_size);
-  root["sets"]            = Value(params.sets);
-  root["total_size"]      = Value(params.size_in_bytes);
+  root["reserved_apics"]      = Value(params.reserved_APICS);
+  root["max_sharing_threads"] = Value(params.max_sharing_threads);
+  root["ways"]                = Value(params.ways);
+  root["line_size"]           = Value(params.system_coherency_line_size);
+  root["line_partitions"]     = Value(params.physical_line_partitions);
+  root["sets"]                = Value(params.sets);
+  root["total_size"]          = Value(params.size_in_bytes);
+  root["inclusive"]           = Value(params.inclusive);
+  root["inclusive_behavior"]  = Value(params.inclusive_behavior);
   return root;
 }
 
@@ -45,33 +57,24 @@ Value& operator<<(Value& root,
 }
 
 Value& operator<<(Value& root, const tag_processor_features& feats) {
-  root["threads"] = Value(feats.threads);
+  root["logical_processors_per_physical_processor_package"]
+             = Value(feats.logical_processors_per_physical_processor_package);
   root["monitor_line_size_min"] = Value(feats.monitor_features.min_line_size);
   root["monitor_line_size_max"] = Value(feats.monitor_features.max_line_size);
   return root;
 }
 
-#if 0
-void intel_detect_processor_topology() {
-  if (features["x2apic"]) {
-    cpuid_with_eax_and_ecx(0x0b, 0);
-    uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0);
-
-    cpuid_with_eax_and_ecx(0x0b, 1);
-    uint logical_cores_per_package = MASK_RANGE_IN(ebx, 15, 0);
-    uint physical_cores_per_package = logical_cores_per_package / threads_per_core;
-
-    std::cout << "threads per core: " << threads_per_core << std::endl;
-    std::cout << "logical per package: " << logical_cores_per_package << std::endl;
-    std::cout << "physical per package: " << physical_cores_per_package << std::endl;
-  } else {
-    std::cout << "no x2apic support" << std::endl;
-    cpuid_with_eax(1);
-    uint logical_processors_per_physical_package = MASK_RANGE_IN(ebx, 23, 16);
-    std::cout << "logical cores per physical package: " << logical_processors_per_physical_package << std::endl;
-  }
+Value Value_from(const tag_processor_signature& sig) {
+  Value root;
+  root["full_bit_string"] = Value(format_bitstring<8 * sizeof(void*)>(sig.full_bit_string));
+  root["extended_family"] = Value(sig.extended_family);
+  root["extended_model"]  = Value(sig.extended_model);
+  root["processor_type"]  = Value(sig.processor_type);
+  root["family_code"]     = Value(sig.family_code);
+  root["model_number"]    = Value(sig.model_number);
+  root["stepping_id"]     = Value(sig.stepping_id);
+  return root;
 }
-#endif
 
 ///////////////////////////////////////////////////////
 
@@ -103,7 +106,10 @@ int main() {
     root["rdtsc_unserialized_overhead_cycles"] = Value_from(info.rdtsc_unserialized_overhead_cycles);
   }
   
+  root["signature"] = Value_from(info.processor_signature);
+  
   std::cout << root.toStyledString() << std::endl;
   
   return 0;
 }
+
