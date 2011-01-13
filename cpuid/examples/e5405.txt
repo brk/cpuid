@@ -3,31 +3,40 @@ max ext %eax input is 0x80000008
 {
    "caches" : {
       "L1d" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 1,
          "reserved_apics" : 4,
          "sets" : 64,
-         "sharing_threads" : 1,
          "total_size" : 32768,
          "ways" : 8
       },
       "L1i" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 1,
          "reserved_apics" : 4,
          "sets" : 64,
-         "sharing_threads" : 1,
          "total_size" : 32768,
          "ways" : 8
       },
       "L2" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 2,
          "reserved_apics" : 4,
          "sets" : 4096,
-         "sharing_threads" : 2,
          "total_size" : 6291456,
          "ways" : 24
       }
    },
-   "cpuid_version" : "2010-06-14",
+   "cpuid_version" : "2011-01-11",
    "features" : {
       "3dnow" : false,
       "3dnowext" : false,
@@ -73,11 +82,20 @@ max ext %eax input is 0x80000008
       "x2apic" : false,
       "x86_64" : true
    },
+   "logical_processors_per_physical_processor_package" : 4,
    "model_name" : "Intel(R) Xeon(R) CPU           E5405  @ 2.00GHz",
    "monitor_line_size_max" : 64,
    "monitor_line_size_min" : 64,
-   "rdtsc_serialized_overhead_cycles" : 276.0,
+   "rdtsc_serialized_overhead_cycles" : 246.0,
    "rdtsc_unserialized_overhead_cycles" : 48.0,
-   "threads" : 4,
+   "signature" : {
+      "extended_family" : 0,
+      "extended_model" : 1,
+      "family_code" : 6,
+      "full_bit_string" : "0b0000000000000001000001100111011000000000000000010000011001110110",
+      "model_number" : 7,
+      "processor_type" : 0,
+      "stepping_id" : 6
+   },
    "vendor_id" : "GenuineIntel"
 }
