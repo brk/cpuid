@@ -58,9 +58,10 @@ void amd_fill_processor_features(cpuid_info& info) {
   }
 
   if (info.features["htt"]) {
-    info.processor_features.threads = MASK_RANGE_IN(ebx, 23, 16);
+    info.processor_features.logical_processors_per_physical_processor_package
+        = MASK_RANGE_IN(ebx, 23, 16);
   } else {
-    info.processor_features.threads = 1;
+    info.processor_features.logical_processors_per_physical_processor_package = 1;
   }
 
   cpuid_with_eax(0x80000001);

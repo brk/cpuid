@@ -37,7 +37,7 @@ feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
   { ECX,  0, "lahf" }
 };
 
-
+#if 0
 const char* intel_processor_type_string(tag_processor_signature& sig) {
   switch (sig.processor_type) {
     case 0b00: return "Original OEM Processor";
@@ -104,6 +104,7 @@ const char* intel_processor_signature_string(tag_processor_signature& sig) {
   }
   return "Unknown processor signature (due to unknown extended model)";
 }
+#endif
 
 void intel_fill_processor_signature(tag_processor_signature& sig) {
   cpuid_with_eax(1);
