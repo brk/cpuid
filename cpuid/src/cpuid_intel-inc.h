@@ -21,7 +21,9 @@ feature_bit intel_feature_bits[] = { // EAX = 1
   { ECX,  4, "ds_cpl" },
   { ECX,  5, "vmx" },
   { ECX,  6, "smx" },
+  { ECX,  7, "eist" },
   { ECX,  9, "ssse3" },
+  { ECX, 12, "fma" },
   { ECX, 13, "cx16" },
   { ECX, 15, "pdcm" },
   { ECX, 19, "sse41" },
@@ -29,7 +31,9 @@ feature_bit intel_feature_bits[] = { // EAX = 1
   { ECX, 21, "x2apic" },
   { ECX, 22, "movbe" },
   { ECX, 23, "popcnt" },
-  { ECX, 25, "aes" }
+  { ECX, 24, "tsc-deadline" },
+  { ECX, 25, "aes" },
+  { ECX, 28, "avx" }
 };
 
 feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001

@@ -1,7 +1,7 @@
 #ifndef CPUID_H
 #define CPUID_H
 
-#define CPUID_VERSION_STRING "2011-01-11"
+#define CPUID_VERSION_STRING "2011-01-18"
 
 // Based on revision 036 (August 2009) of Intel's Application Note 485,
 // Intel (r) Processor Identification and the CPUID Instruction.
