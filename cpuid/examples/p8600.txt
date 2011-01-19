@@ -3,37 +3,47 @@ max ext %eax input is 0x80000008
 {
    "caches" : {
       "L1d" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 1,
          "reserved_apics" : 2,
          "sets" : 64,
-         "sharing_threads" : 1,
          "total_size" : 32768,
          "ways" : 8
       },
       "L1i" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 1,
          "reserved_apics" : 2,
          "sets" : 64,
-         "sharing_threads" : 1,
          "total_size" : 32768,
          "ways" : 8
       },
       "L2" : {
+         "inclusive" : false,
+         "inclusive_behavior" : true,
+         "line_partitions" : 1,
          "line_size" : 64,
+         "max_sharing_threads" : 2,
          "reserved_apics" : 2,
          "sets" : 4096,
-         "sharing_threads" : 2,
          "total_size" : 3145728,
          "ways" : 12
       }
    },
-   "cpuid_version" : "2010-06-14",
+   "cpuid_version" : "2011-01-18",
    "features" : {
       "3dnow" : false,
       "3dnowext" : false,
       "3dnowprefetch" : false,
       "abm" : false,
       "aes" : false,
+      "avx" : false,
       "clflush" : true,
       "cmov" : true,
       "cx16" : true,
@@ -41,6 +51,8 @@ max ext %eax input is 0x80000008
       "ds" : true,
       "ds_cpl" : true,
       "dtes64" : true,
+      "eist" : true,
+      "fma" : false,
       "htt" : true,
       "ibs" : false,
       "lahf" : true,
@@ -69,16 +81,26 @@ max ext %eax input is 0x80000008
       "ssse3" : true,
       "svm" : false,
       "tsc" : true,
+      "tsc-deadline" : false,
       "vmx" : true,
       "x2apic" : false,
       "x86_64" : true
    },
+   "logical_processors_per_physical_processor_package" : 2,
    "model_name" : "Intel(R) Core(TM)2 Duo CPU     P8600  @ 2.40GHz",
    "monitor_line_size_max" : 64,
    "monitor_line_size_min" : 64,
-   "rdtsc_serialized_overhead_cycles" : 495.0,
-   "rdtsc_unserialized_overhead_cycles" : 54.0,
-   "threads" : 2,
+   "rdtsc_serialized_overhead_cycles" : 279.0,
+   "rdtsc_unserialized_overhead_cycles" : 45.0,
+   "signature" : {
+      "extended_family" : 0,
+      "extended_model" : 1,
+      "family_code" : 6,
+      "full_bit_string" : "0b0000000000000001000001100111101000000000000000010000011001111010",
+      "model_number" : 7,
+      "processor_type" : 0,
+      "stepping_id" : 10
+   },
    "vendor_id" : "GenuineIntel"
 }
 
