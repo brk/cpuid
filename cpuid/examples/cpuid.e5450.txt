@@ -36,13 +36,14 @@ max ext %eax input is 0x80000008
          "ways" : 24
       }
    },
-   "cpuid_version" : "2011-01-11",
+   "cpuid_version" : "2011-01-18",
    "features" : {
       "3dnow" : false,
       "3dnowext" : false,
       "3dnowprefetch" : false,
       "abm" : false,
       "aes" : false,
+      "avx" : false,
       "clflush" : true,
       "cmov" : true,
       "cx16" : true,
@@ -50,6 +51,8 @@ max ext %eax input is 0x80000008
       "ds" : true,
       "ds_cpl" : true,
       "dtes64" : true,
+      "eist" : true,
+      "fma" : false,
       "htt" : true,
       "ibs" : false,
       "lahf" : true,
@@ -78,6 +81,7 @@ max ext %eax input is 0x80000008
       "ssse3" : true,
       "svm" : false,
       "tsc" : true,
+      "tsc-deadline" : false,
       "vmx" : true,
       "x2apic" : false,
       "x86_64" : true
