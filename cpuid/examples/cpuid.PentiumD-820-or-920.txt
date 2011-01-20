@@ -25,7 +25,7 @@ max ext %eax input is 0x80000008
          "ways" : 8
       }
    },
-   "cpuid_version" : "2011-01-11",
+   "cpuid_version" : "2011-01-18",
    "features" : {
       "3dnow" : false,
       "3dnowext" : false,
@@ -80,7 +80,7 @@ max ext %eax input is 0x80000008
    "monitor_line_size_max" : 64,
    "monitor_line_size_min" : 64,
    "rdtsc_serialized_overhead_cycles" : 518.0,
-   "rdtsc_unserialized_overhead_cycles" : 98.0,
+   "rdtsc_unserialized_overhead_cycles" : 112.0,
    "signature" : {
       "extended_family" : 0,
       "extended_model" : 0,
