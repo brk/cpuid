@@ -33,7 +33,9 @@ feature_bit intel_feature_bits[] = { // EAX = 1
   { ECX, 23, "popcnt" },
   { ECX, 24, "tsc-deadline" },
   { ECX, 25, "aes" },
-  { ECX, 28, "avx" }
+  { ECX, 28, "avx" },
+  { ECX, 29, "f16c" },
+  { ECX, 30, "rdrand" }
 };
 
 feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
@@ -42,6 +44,9 @@ feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
 };
 
 #if 0
+// Binary literals aren't supported by Apple's gcc 4.2.1,
+// and the 2.7svn version of ld chokes on clang passing it -demangle.
+// Sadness :-(
 const char* intel_processor_type_string(tag_processor_signature& sig) {
   switch (sig.processor_type) {
     case 0b00: return "Original OEM Processor";
@@ -95,16 +100,48 @@ const char* intel_extmodel_1_signature_string(tag_processor_signature& sig) {
         case 0b1100: return "Atom (45 nm)";
         case 0b1010: return "Core i7 (45 nm)";
         case 0b1101: return "Xeon MP (45 nm)";
+        case 0b1110: return "Core i5/i7/Mobile/Xeon (45 nm)";
+        case 0b1110: return "Xeon MP (45 nm)";
+        case 0b1111: return "Xeon MP (32 nm)";
+        case 0b1100: return "Xeon MP (32 nm)";
       }
       break;
   }
   return "Unknown processor signature";
 }
 
+const char* intel_extmodel_2_signature_string(tag_processor_signature& sig) {
+  switch (sig.family_code) {
+    case 0b0110:
+      switch (sig.model_number) {
+        case 0b1110: return "Xeon MP (45 nm)";
+        case 0b1111: return "Xeon MP (32 nm)";
+        case 0b1100: return "Core i7/Xeon (32 nm)";
+        case 0b0101: return "Core i3/i5/i7 Mobile (32 nm)";
+        case 0b1010: return "2nd Generation Core/Xeon E3 Sandy Bridge (32 nm)";
+        case 0b1101: return "2nd Generation Core/Xeon E5 Sandy Bridge (32 nm)";
+      }
+      break;
+  }
+  return "Unknown processor signature";
+}
+
+const char* intel_extmodel_3_signature_string(tag_processor_signature& sig) {
+  switch (sig.family_code) {
+    case 0b0110:
+      switch (sig.model_number) {
+        case 0b1010: return "3rd Generation Core/Xeon E3 Sandy Bridge (22 nm)";
+      }
+      break;
+  }
+  return "Unknown processor signature";
+}
 const char* intel_processor_signature_string(tag_processor_signature& sig) {
   switch (sig.extended_model) {
-  case 0: return intel_extmodel_0_signature_string(sig);
-  case 1: return intel_extmodel_1_signature_string(sig);
+  case 0b00: return intel_extmodel_0_signature_string(sig);
+  case 0b01: return intel_extmodel_1_signature_string(sig);
+  case 0b10: return intel_extmodel_2_signature_string(sig);
+  case 0b11: return intel_extmodel_3_signature_string(sig);
   }
   return "Unknown processor signature (due to unknown extended model)";
 }
