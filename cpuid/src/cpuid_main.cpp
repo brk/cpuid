@@ -59,6 +59,8 @@ Value& operator<<(Value& root,
 Value& operator<<(Value& root, const tag_processor_features& feats) {
   root["logical_processors_per_physical_processor_package"]
              = Value(feats.logical_processors_per_physical_processor_package);
+  root["max_logical_processors_per_physical_processor_package"]
+             = Value(feats.max_logical_processors_per_physical_processor_package);
   root["monitor_line_size_min"] = Value(feats.monitor_features.min_line_size);
   root["monitor_line_size_max"] = Value(feats.monitor_features.max_line_size);
   return root;

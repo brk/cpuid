@@ -1,7 +1,7 @@
 #ifndef CPUID_H
 #define CPUID_H
 
-#define CPUID_VERSION_STRING "2011-01-18"
+#define CPUID_VERSION_STRING "2013-09-25"
 
 // Based on revision 036 (August 2009) of Intel's Application Note 485,
 // Intel (r) Processor Identification and the CPUID Instruction.
@@ -26,7 +26,8 @@ int cpuid_large_cache_size(cpuid_info&);
 /////////////////////////////////////////////////////////////////////
 
 struct tag_processor_features {
-  int logical_processors_per_physical_processor_package;
+  int max_logical_processors_per_physical_processor_package;
+  int     logical_processors_per_physical_processor_package;
 
   struct tag_monitor_features {
     int min_line_size;

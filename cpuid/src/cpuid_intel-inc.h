@@ -1,18 +1,22 @@
 feature_bit intel_feature_bits[] = { // EAX = 1
-  { EDX,  3, "pse" },
+  { EDX,  3, "pse" }, // page size extensions, i.e. 4mb pages
   { EDX,  4, "tsc" },
   { EDX,  5, "msr" },
   { EDX,  8, "cx8" },
+  { EDX,  9, "apic" },
+  { EDX, 11, "sep" }, // sysenter and sysexit
+  { EDX, 12, "mtrr" }, // memory type range registers
+  { EDX, 13, "pge" }, // page global bit
   { EDX, 15, "cmov" },
-  { EDX, 16, "pat" },
-  { EDX, 17, "pse36" },
+  { EDX, 16, "pat" }, // page attribute table
+  { EDX, 17, "pse36" }, // 36-bit page size extension
   { EDX, 19, "clflush" },
-  { EDX, 21, "ds" },
+  { EDX, 21, "ds" }, // debug store
   { EDX, 23, "mmx" },
   { EDX, 25, "sse" },
   { EDX, 26, "sse2" },
   { EDX, 27, "ss" },
-  { EDX, 28, "htt" },
+  { EDX, 28, "htt" }, // multi-threading/hyper-threading
 
   { ECX,  0, "sse3" },
   { ECX,  1, "pclmuldq" },
@@ -23,9 +27,12 @@ feature_bit intel_feature_bits[] = { // EAX = 1
   { ECX,  6, "smx" },
   { ECX,  7, "eist" },
   { ECX,  9, "ssse3" },
+  { ECX, 10, "l1-ctx-id" },
   { ECX, 12, "fma" },
   { ECX, 13, "cx16" },
-  { ECX, 15, "pdcm" },
+  { ECX, 15, "pdcm" }, // perfmon/debug capability
+  { ECX, 17, "process-ctx-ids" },
+  { ECX, 18, "direct-cache-access" },
   { ECX, 19, "sse41" },
   { ECX, 20, "sse42" },
   { ECX, 21, "x2apic" },
@@ -33,14 +40,27 @@ feature_bit intel_feature_bits[] = { // EAX = 1
   { ECX, 23, "popcnt" },
   { ECX, 24, "tsc-deadline" },
   { ECX, 25, "aes" },
+  { ECX, 26, "xsave" },
+  { ECX, 27, "osxsave" },
   { ECX, 28, "avx" },
   { ECX, 29, "f16c" },
   { ECX, 30, "rdrand" }
 };
 
 feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
+  { EDX, 11, "syscall" },
+  { EDX, 20, "nx" },
+  { EDX, 26, "page1gb" },
   { EDX, 29, "x86_64" },
-  { ECX,  0, "lahf" }
+  { ECX,  0, "lahf" },
+  { ECX,  5, "lzcnt" }
+};
+
+feature_bit intel_st_ext_feature_bits[] = { // EAX = 0x7
+  { EBX, 4, "hle"  },
+  { EBX, 5, "avx2" },
+  { EBX, 7, "smep" },
+  { EBX, 9, "en-rep-movsb" }
 };
 
 #if 0
@@ -166,6 +186,28 @@ void intel_init_all_features_to_false(cpuid_info& info) {
   for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
     info.features[intel_ext_feature_bits[i].name] = false;
   }
+  for (int i = 0; i < ARRAY_SIZE(intel_st_ext_feature_bits); ++i) {
+    info.features[intel_st_ext_feature_bits[i].name] = false;
+  }
+}
+
+void intel_detect_processor_topology(cpuid_info& info) {
+  info.processor_features.max_logical_processors_per_physical_processor_package
+      = MASK_RANGE_IN(ebx, 23, 16);
+  if (info.features["x2apic"] && info.max_basic_eax >= 0xb) {
+    cpuid_with_eax_and_ecx(0x0b, 0);
+    uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0); // as shipped; BIOS may disable some.
+
+    cpuid_with_eax_and_ecx(0x0b, 1);
+    uint logical_cores_per_package = MASK_RANGE_IN(ebx, 15, 0);
+    uint physical_cores_per_package = logical_cores_per_package / threads_per_core;
+
+    info.processor_features.logical_processors_per_physical_processor_package =
+      logical_cores_per_package;
+  } else {
+    info.processor_features.logical_processors_per_physical_processor_package =
+      info.processor_features.max_logical_processors_per_physical_processor_package;
+  }
 }
 
 
@@ -176,12 +218,17 @@ void intel_fill_processor_features(cpuid_info& info) {
     info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
 
-  info.processor_features.logical_processors_per_physical_processor_package
-      = MASK_RANGE_IN(ebx, 23, 16);
+  intel_detect_processor_topology(info);
 
   cpuid_with_eax(0x80000001);
   for (int i = 0; i < ARRAY_SIZE(intel_ext_feature_bits); ++i) {
     feature_bit f(intel_ext_feature_bits[i]);
+    info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
+
+  cpuid_with_eax(0x7);
+  for (int i = 0; i < ARRAY_SIZE(intel_st_ext_feature_bits); ++i) {
+    feature_bit f(intel_st_ext_feature_bits[i]);
     info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
 
@@ -194,29 +241,6 @@ void intel_fill_processor_features(cpuid_info& info) {
     info.processor_features.monitor_features.max_line_size = 0;
   }
 }
-
-
-#if 0
-void intel_detect_processor_topology() {
-  if (features["x2apic"]) {
-    cpuid_with_eax_and_ecx(0x0b, 0);
-    uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0);
-
-    cpuid_with_eax_and_ecx(0x0b, 1);
-    uint logical_cores_per_package = MASK_RANGE_IN(ebx, 15, 0);
-    uint physical_cores_per_package = logical_cores_per_package / threads_per_core;
-
-    std::cout << "threads per core: " << threads_per_core << std::endl;
-    std::cout << "logical per package: " << logical_cores_per_package << std::endl;
-    std::cout << "physical per package: " << physical_cores_per_package << std::endl;
-  } else {
-    std::cout << "no x2apic support" << std::endl;
-    cpuid_with_eax(1);
-    uint logical_processors_per_physical_package = MASK_RANGE_IN(ebx, 23, 16);
-    std::cout << "logical cores per physical package: " << logical_processors_per_physical_package << std::endl;
-  }
-}
-#endif
 
 
 void intel_set_cache_properties(tag_processor_cache_descriptor& cache,
