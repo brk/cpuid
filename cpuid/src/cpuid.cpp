@@ -219,14 +219,16 @@ bool cpuid_introspect(cpuid_info& info) {
   } else if (std::string("AuthenticAMD") == info.vendor_id) {
     amd_fill_processor_features(info);
     amd_fill_processor_caches(info);
-    if (info.max_ext_eax >= 0x80000008) {
-      cpuid_with_eax(0x80000008);
-      info.max_linear_address_size = MASK_RANGE_IN(eax, 15, 8);
-      info.max_physical_address_size = MASK_RANGE_IN(eax, 7, 0);
-    }
   } else {
     // Unknown vendor ID!
     return false;
+  }
+
+  // Feature/flag bits common to all platforms:
+  if (info.max_ext_eax >= 0x80000008) {
+    cpuid_with_eax(0x80000008);
+    info.max_physical_address_size = MASK_RANGE_IN(eax, 7, 0);
+    info.max_linear_address_size   = MASK_RANGE_IN(eax, 15, 8);
   }
 
   if (info.features["tsc"]) {

@@ -51,16 +51,40 @@ feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
   { EDX, 11, "syscall" },
   { EDX, 20, "nx" },
   { EDX, 26, "page1gb" },
+  { EDX, 27, "rdtscp" },
   { EDX, 29, "x86_64" },
   { ECX,  0, "lahf" },
   { ECX,  5, "lzcnt" }
 };
 
 feature_bit intel_st_ext_feature_bits[] = { // EAX = 0x7
+  { EBX, 0, "fsgsbase"  },
+  { EBX, 1, "ia32_tsc_adjust"  },
+  { EBX, 2, "sgx"  },
+  { EBX, 3, "bmi1"  },
   { EBX, 4, "hle"  },
   { EBX, 5, "avx2" },
+  { EBX, 6, "fdp_excptn_only" },
   { EBX, 7, "smep" },
-  { EBX, 9, "en-rep-movsb" }
+  { EBX, 8, "bmi2"  },
+  { EBX, 9, "en-rep-movsb" },
+  { EBX, 10, "invpcid" },
+  { EBX, 11, "rtm" },
+  { EBX, 12, "rdt-m" },
+  { EBX, 14, "mpx" },
+  { EBX, 15, "rdt-a" },
+  { EBX, 18, "rdseed" },
+  { EBX, 19, "adx" },
+  { EBX, 20, "smap" },
+  { EBX, 23, "clflushopt" },
+  { EBX, 24, "clwb" },
+  { EBX, 25, "processor-trace" },
+  { EBX, 29, "sha-ext" },
+  { ECX,  2, "umip" },
+  { ECX,  3, "pku" },
+  { ECX,  4, "ospke" },
+  { ECX, 22, "rdpid" },
+  { ECX, 30, "sgx-lc" },
 };
 
 #if 0
@@ -194,11 +218,11 @@ void intel_init_all_features_to_false(cpuid_info& info) {
 void intel_detect_processor_topology(cpuid_info& info) {
   info.processor_features.max_logical_processors_per_physical_processor_package
       = MASK_RANGE_IN(ebx, 23, 16);
-  if (info.features["x2apic"] && info.max_basic_eax >= 0xb) {
-    cpuid_with_eax_and_ecx(0x0b, 0);
+  if (info.features["x2apic"] && info.max_basic_eax >= 0x0B) {
+    cpuid_with_eax_and_ecx(0x0B, 0);
     uint threads_per_core = MASK_RANGE_IN(ebx, 15, 0); // as shipped; BIOS may disable some.
 
-    cpuid_with_eax_and_ecx(0x0b, 1);
+    cpuid_with_eax_and_ecx(0x0B, 1);
     uint logical_cores_per_package = MASK_RANGE_IN(ebx, 15, 0);
     uint physical_cores_per_package = logical_cores_per_package / threads_per_core;
 
@@ -230,6 +254,28 @@ void intel_fill_processor_features(cpuid_info& info) {
   for (int i = 0; i < ARRAY_SIZE(intel_st_ext_feature_bits); ++i) {
     feature_bit f(intel_st_ext_feature_bits[i]);
     info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
+
+  if (info.max_basic_eax >= 0x0A) {
+    cpuid_with_eax(0x0A);
+    info.processor_features.pm_features.version_id = MASK_RANGE_IN(eax, 7, 0);
+    info.processor_features.pm_features.gp_counters_per_processor = MASK_RANGE_IN(eax, 15, 8);
+    info.processor_features.pm_features.gp_counter_bitwidth = MASK_RANGE_IN(eax, 23, 16);
+    info.processor_features.pm_features.gp_counter_events   = MASK_RANGE_IN(eax, 31, 24);
+
+    info.processor_features.pm_features.ff_counter_bitwidth = MASK_RANGE_IN(edx,  4, 0);
+    info.processor_features.pm_features.ff_counter_count    = MASK_RANGE_IN(edx, 12, 5);
+  }
+
+  if (info.max_basic_eax >= 0x80000006) {
+    cpuid_with_eax(0x80000006);
+    info.cache_line_size = MASK_RANGE_IN(ecx, 7, 0);
+    info.cache_size_bytes = 1024 * MASK_RANGE_IN(ecx, 31, 16);
+  }
+
+  if (info.max_basic_eax >= 0x80000007) {
+    cpuid_with_eax(0x80000007);
+    info.features["invariant-tsc"] = BIT_IS_SET(edx, 8);
   }
 
   if (info.features["monitor"]) {
@@ -303,13 +349,13 @@ void intel_add_processor_cache_parameters(cpuid_info& info) {
   params.physical_line_partitions      = MASK_RANGE_IN(ebx, 21, 12) + 1;
   params.system_coherency_line_size    = MASK_RANGE_IN(ebx, 11, 0) + 1;
   params.sets                          = ecx + 1;
-  
+
   /// "A value of '0' means that WBINVD/INVD from any thread sharing this cache
   ///  acts on all lower cachess for threads sharing this cache. A value of '1'
   ///  means that WBINVD/INVD is not guaranteed to act upon lower-level caches
   ///  of non-originating threads sharing this cache."
   params.inclusive                     = BIT_IS_SET(edx, 1);
-  
+
   /// "A value of '0' means that WBINVD/INVD from any thread sharing this cache
   ///  acts on all lower cachess for threads sharing this cache. A value of '1'
   ///  means that WBINVD/INVD is not guaranteed to act upon lower-level caches
@@ -342,8 +388,10 @@ void intel_fill_processor_caches(cpuid_info& info) {
 }
 
 // TODO: test EFLAGS first
-// TODO: function 5
+// TODO: function 5 for MONITOR/MWAIT
+// TODO: function 6 for thermal and power management
 // TODO: function 8000_0006
+// TODO: function 8000_0007
 // TODO: function 8000_0008
 // TODO: denormals-are-zero
 

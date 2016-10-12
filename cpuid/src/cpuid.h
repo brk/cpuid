@@ -1,7 +1,7 @@
 #ifndef CPUID_H
 #define CPUID_H
 
-#define CPUID_VERSION_STRING "2013-09-25"
+#define CPUID_VERSION_STRING "2016-10-12"
 
 // Based on revision 036 (August 2009) of Intel's Application Note 485,
 // Intel (r) Processor Identification and the CPUID Instruction.
@@ -33,6 +33,15 @@ struct tag_processor_features {
     int min_line_size;
     int max_line_size;
   } monitor_features;
+
+  struct tag_pm_features {
+    int version_id;
+    int gp_counters_per_processor;
+    int gp_counter_bitwidth;
+    int gp_counter_events;
+    int ff_counter_bitwidth;
+    int ff_counter_count;
+  } pm_features;
 };
 
 struct tag_processor_cache_descriptor {
@@ -94,10 +103,18 @@ struct cpuid_info {
     rdtsc_unserialized_overhead_cycles = -1;
   }
 
+  // A Core i7 has the following basic leafs, by EAX value:
+  //  0x05 for MONITOR/MWAIT
+  //  0x0A for Architectural Performance Monitoring
+  //  0x0B for Extended Topology Enumeration
+  //  0x0C (invalid)
+  //  0x80000008 for linear/physical address size data
   int max_basic_eax;
   uint max_ext_eax;
   int max_linear_address_size;
   int max_physical_address_size;
+  int cache_line_size;
+  int cache_size_bytes;
   double rdtsc_serialized_overhead_cycles;
   double rdtsc_unserialized_overhead_cycles;
 

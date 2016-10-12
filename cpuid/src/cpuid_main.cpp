@@ -63,6 +63,15 @@ Value& operator<<(Value& root, const tag_processor_features& feats) {
              = Value(feats.max_logical_processors_per_physical_processor_package);
   root["monitor_line_size_min"] = Value(feats.monitor_features.min_line_size);
   root["monitor_line_size_max"] = Value(feats.monitor_features.max_line_size);
+
+  Value pm;
+  pm["version"]                   = Value(feats.pm_features.version_id);
+  pm["gp_counters_per_processor"] = Value(feats.pm_features.gp_counters_per_processor);
+  pm["gp_counter_bitwidth"] = Value(feats.pm_features.gp_counter_bitwidth);
+  pm["ff_counter_bitwidth"] = Value(feats.pm_features.ff_counter_bitwidth);
+  pm["ff_counter_count"]    = Value(feats.pm_features.ff_counter_count);
+
+  root["perfmon"] = pm;
   return root;
 }
 
@@ -86,12 +95,6 @@ int main() {
 
   ///////////////////////////////////////////////////////////////////
 
-  std::cout << "max basic %eax cpuid input is " << info.max_basic_eax << std::endl;
-  printf("max ext %%eax input is 0x%x\n", info.max_ext_eax);
-
-  //std::cout << "max linear address size: " << << std::endl;
-  //std::cout << "max physcl address size: " << << std::endl;
-
   Value root;
   root["cpuid_version"] = Value(CPUID_VERSION_STRING);
 
@@ -107,11 +110,17 @@ int main() {
     root["rdtsc_serialized_overhead_cycles"] = Value_from(info.rdtsc_serialized_overhead_cycles);
     root["rdtsc_unserialized_overhead_cycles"] = Value_from(info.rdtsc_unserialized_overhead_cycles);
   }
-  
+
+  root["physical_address_bits"] = info.max_physical_address_size;
+  root["linear_address_bits"] = info.max_linear_address_size;
+  //root["cache_line_size"] = info.cache_line_size;
+  //root["cache_size_bytes"] = info.cache_size_bytes;
+  root["max_basic_eax"] = info.max_basic_eax;
+  root["max_ext_eax"] = info.max_ext_eax;
   root["signature"] = Value_from(info.processor_signature);
-  
+
   std::cout << root.toStyledString() << std::endl;
-  
+
   return 0;
 }
 
