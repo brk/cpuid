@@ -235,5 +235,6 @@ bool cpuid_introspect(cpuid_info& info) {
     estimate_rdtsc_overhead(info);
   }
 
+  return true;
 }
 

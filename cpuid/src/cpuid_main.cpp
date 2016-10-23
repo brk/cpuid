@@ -54,6 +54,7 @@ Value& operator<<(Value& root,
   std::stringstream name;
   name << "L" << params.cache_level << cache_type_str(params.cache_type);
   root[name.str()] = Value_from(params);
+  return root;
 }
 
 Value& operator<<(Value& root, const tag_processor_features& feats) {
