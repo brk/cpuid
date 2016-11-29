@@ -57,7 +57,14 @@ feature_bit intel_ext_feature_bits[] = { // EAX = 0x80000001
   { ECX,  5, "lzcnt" }
 };
 
-feature_bit intel_st_ext_feature_bits[] = { // EAX = 0x7
+feature_bit intel_tp_ext_feature_bits[] = { // EAX = 0x6
+  { EAX,  0, "temp-sensor" },
+  { EAX,  1, "turbo-boost" },
+  { EAX,  2, "arat" },
+  { EAX, 13, "hdc-registers" }
+};
+
+feature_bit intel_st_ext_feature_bits[] = { // EAX = 0x7, ECX = 0
   { EBX, 0, "fsgsbase"  },
   { EBX, 1, "ia32_tsc_adjust"  },
   { EBX, 2, "sgx"  },
@@ -250,7 +257,13 @@ void intel_fill_processor_features(cpuid_info& info) {
     info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
   }
 
-  cpuid_with_eax(0x7);
+  cpuid_with_eax_and_ecx(0x6, 0);
+  for (int i = 0; i < ARRAY_SIZE(intel_tp_ext_feature_bits); ++i) {
+    feature_bit f(intel_tp_ext_feature_bits[i]);
+    info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
+  }
+
+  cpuid_with_eax_and_ecx(0x7, 0);
   for (int i = 0; i < ARRAY_SIZE(intel_st_ext_feature_bits); ++i) {
     feature_bit f(intel_st_ext_feature_bits[i]);
     info.features[f.name] = BIT_IS_SET(reg[f.reg], f.offset);
@@ -263,8 +276,8 @@ void intel_fill_processor_features(cpuid_info& info) {
     info.processor_features.pm_features.gp_counter_bitwidth = MASK_RANGE_IN(eax, 23, 16);
     info.processor_features.pm_features.gp_counter_events   = MASK_RANGE_IN(eax, 31, 24);
 
-    info.processor_features.pm_features.ff_counter_bitwidth = MASK_RANGE_IN(edx,  4, 0);
-    info.processor_features.pm_features.ff_counter_count    = MASK_RANGE_IN(edx, 12, 5);
+    info.processor_features.pm_features.ff_counter_count    = MASK_RANGE_IN(edx,  4, 0);
+    info.processor_features.pm_features.ff_counter_bitwidth = MASK_RANGE_IN(edx, 12, 5);
   }
 
   if (info.max_basic_eax >= 0x80000006) {
